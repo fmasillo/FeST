@@ -1,0 +1,9 @@
+# Ignore .o files and executables
+
+*.o
+splay_tree
+enhanced_splay_tree
+
+# Ignore clipboard.txt
+
+clipboard.txt
