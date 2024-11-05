@@ -122,93 +122,49 @@ public:
     updateSubtreeSize(y);
   }
 
-  // Insert a new character at a given position
+  // Insert a new character at a given position using only split operations
   void insert(char c, int position) {
-    node *z = root;
-    node *p = nullptr;
-    int currentPos = 0;
-
-    while (z) {
-      p = z;
-      int leftSize = z->left ? z->left->subtree_size : 0;
-      if (position <= currentPos + leftSize) {
-        z = z->left;
-      } else {
-        currentPos += leftSize + 1;
-        z = z->right;
-      }
+    if (position == 0) {
+      node *n = new node(c);
+      n->right = root;
+      if (root)
+        root->parent = n;
+      root = n;
+      updateSubtreeSize(root);
+      return;
     }
 
-    z = new node(c);
-    z->parent = p;
-    if (!p)
-      root = z;
-    else if (position <= currentPos)
-      p->left = z;
-    else
-      p->right = z;
+    SplayTree leftTree, rightTree;
+    split(position - 1, leftTree, rightTree);
+    node *n = new node(c);
+    root = n;
+    root->left = leftTree.root;
+    root->right = rightTree.root;
+    if (leftTree.root)
+      leftTree.root->parent = root;
+    if (rightTree.root)
+      rightTree.root->parent = root;
 
-    splay(z);
+    updateSubtreeSize(root);
   }
 
-  // Find a node at a given position
   node *find(int position) {
     node *z = root;
-    int currentPos = 0;
+    int currentPos = position;
 
     while (z) {
       int leftSize = z->left ? z->left->subtree_size : 0;
-      if (position < currentPos + leftSize) {
-        z = z->left;
-      } else if (position > currentPos + leftSize) {
-        currentPos += leftSize + 1;
-        z = z->right;
-      } else {
+      if (currentPos == leftSize) {
         splay(z);
-        return z;
+        return root;
+      } else if (currentPos < leftSize) {
+        z = z->left;
+      } else {
+        currentPos -= leftSize + 1;
+        z = z->right;
       }
     }
     return nullptr;
-  }
-
-  // Delete a node at a given position
-  void deleteNode(int position) {
-    node *z = find(position);
-    if (!z)
-      return;
-
-    splay(z);
-
-    if (!z->left) {
-      replace(z, z->right);
-    } else if (!z->right) {
-      replace(z, z->left);
-    } else {
-      node *y = minimum(z->right);
-      if (y->parent != z) {
-        replace(y, y->right);
-        y->right = z->right;
-        y->right->parent = y;
-      }
-      replace(z, y);
-      y->left = z->left;
-      y->left->parent = y;
-    }
-
-    updateSubtreeSize(root);
-    delete z;
-  }
-
-  // Replace one subtree as a child of its parent with another subtree
-  void replace(node *u, node *v) {
-    if (!u->parent)
-      root = v;
-    else if (u == u->parent->left)
-      u->parent->left = v;
-    else
-      u->parent->right = v;
-    if (v)
-      v->parent = u->parent;
   }
 
   // Find the minimum node in a subtree
@@ -240,6 +196,8 @@ public:
   void split(int position, SplayTree &leftTree, SplayTree &rightTree) {
     node *z = find(position);
     if (!z) {
+      std::cout << "Z is null" << std::endl;
+
       leftTree.root = root;
       rightTree.root = nullptr;
     } else {
@@ -254,10 +212,19 @@ public:
   }
 
   // Delete implementation using split and join
-  void delete2(int position) {
-    SplayTree leftTree, rightTree;
-    split(position, leftTree, rightTree);
-    rightTree.split(0, rightTree, rightTree);
+  void deleteNode(int position) {
+    if (position == 0) {
+      find(0);
+      root = root->right;
+      root->parent = nullptr;
+      return;
+    }
+
+    SplayTree leftTree, rightTree, deletedNode;
+    split(position - 1, leftTree, rightTree);
+
+    rightTree.split(0, deletedNode, rightTree);
+
     leftTree.join(rightTree);
     root = leftTree.root;
   }
@@ -283,11 +250,19 @@ int main() {
   std::cout << "Root character: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
+  std::cout << "Find node at position 5" << std::endl;
+  tree.find(5);
+  tree.visualize(tree.getRoot());
+
   tree.insert('h', 3); // Insert 'h' at position 3
   std::cout << "Root after insertion: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
-  tree.delete2(3); // Delete node at position 3
+  tree.insert('i', 0); // Insert 'i' at position 0
+  std::cout << "Root after insertion: " << tree.root->character << std::endl;
+  tree.visualize(tree.getRoot());
+
+  tree.deleteNode(3); // Delete node at position 3
   std::cout << "Root after deletion: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
@@ -295,9 +270,56 @@ int main() {
   std::cout << "Found node: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
-  tree.delete2(0); // Delete node at position 1
+  tree.deleteNode(0); // Delete node at position 1
   std::cout << "Root after deletion: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
   return 0;
 }
+
+/* // Insert a new character at a given position */
+/*   void insert(char c, int position) { */
+
+/*     if (position == 0) { */
+/*       node *n = new node(c); */
+/*       n->right = root; */
+/*       if (root) */
+/*         root->parent = n; */
+/*       root = n; */
+/*       return; */
+/*     } */
+
+/*     node *z = root; */
+/*     int currentPos = position - 1; */
+
+/*     while (z) { */
+/*       int leftSize = z->left ? z->left->subtree_size : 0; */
+/*       if (currentPos == leftSize + 1) { */
+/*         break; */
+/*       } else if (currentPos < leftSize + 1) { */
+/*         z = z->left; */
+/*       } else { */
+/*         currentPos -= leftSize + 1; */
+/*         z = z->right; */
+/*       } */
+/*     } */
+
+/*     node *n = new node(c); */
+/*     if (!z) { */
+/*       root = n; */
+/*     } else if (currentPos == 0) { */
+/*       n->left = z->left; */
+/*       if (z->left) */
+/*         z->left->parent = n; */
+/*       z->left = n; */
+/*       n->parent = z; */
+/*     } else { */
+/*       n->left = z->right; */
+/*       if (z->right) */
+/*         z->right->parent = n; */
+/*       z->right = n; */
+/*       n->parent = z; */
+/*     } */
+
+/*     splay(n); */
+/*   } */
