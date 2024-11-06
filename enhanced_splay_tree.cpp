@@ -1,5 +1,10 @@
+#include <cassert>
+#include <cstdint>
 #include <iostream>
 #include <vector>
+
+static uint64_t prime = ((uint64_t)1 << 63) - 59;
+static uint64_t base = 255;
 
 struct node {
   node *parent;
@@ -7,10 +12,12 @@ struct node {
   node *right;
   int subtree_size;
   char character;
+  uint64_t kr;
+  uint64_t base_exp;
 
   node(char c)
       : parent(nullptr), left(nullptr), right(nullptr), subtree_size(1),
-        character(c) {}
+        character(c), kr(c), base_exp(base) {}
 };
 
 class SplayTree {
@@ -38,6 +45,8 @@ public:
       n->right->parent = n;
 
     updateSubtreeSize(n);
+    updateKR(n);
+
     return n;
   }
 
@@ -51,6 +60,45 @@ public:
         n->subtree_size += n->right->subtree_size;
     }
   }
+
+  void updateKR(node *n) {
+    if (n) {
+      n->kr = n->character;
+      n->base_exp = base;
+      if (n->left) {
+        n->kr = (n->kr + n->left->kr * base) % prime;
+        n->base_exp = (n->left->base_exp * n->base_exp) % prime;
+      }
+      if (n->right) {
+        n->kr = (n->kr * n->right->base_exp + n->right->kr) % prime;
+        n->base_exp = (n->base_exp * n->right->base_exp) % prime;
+      }
+    }
+    assert(n->base_exp > 0);
+  }
+
+  /* void updateKR(node *n) { */
+  /*   if (n) { */
+  /*     n->kr = n->character; */
+  /*     n->base_exp = base; */
+  /*     if (n->left) { */
+  /*       n->kr = ((__uint128_t)n->kr + (__uint128_t)n->left->kr * base) %
+   * prime; */
+  /*       n->base_exp = */
+  /*           ((__uint128_t)n->left->base_exp * (__uint128_t)n->base_exp) %
+   * prime; */
+  /*     } */
+  /*     if (n->right) { */
+  /*       n->kr = ((__uint128_t)n->kr * (__uint128_t)n->right->base_exp +
+   * (__uint128_t)n->right->kr) % */
+  /*               prime; */
+  /*       n->base_exp = */
+  /*           ((__uint128_t)n->base_exp * (__uint128_t)n->right->base_exp) % */
+  /*           prime; */
+  /*     } */
+  /*   } */
+  /*   assert(n->base_exp > 0); */
+  /* } */
 
   // Splay operation
   void splay(node *x) {
@@ -80,6 +128,7 @@ public:
     root = x;
 
     updateSubtreeSize(root);
+    updateKR(root);
   }
 
   // Right rotate
@@ -100,6 +149,8 @@ public:
 
     updateSubtreeSize(x);
     updateSubtreeSize(y);
+    updateKR(x);
+    updateKR(y);
   }
 
   // Left rotate
@@ -120,10 +171,12 @@ public:
 
     updateSubtreeSize(x);
     updateSubtreeSize(y);
+    updateKR(x);
+    updateKR(y);
   }
 
   // Insert a new character at a given position using only split operations
-  void insert(char c, int position) {
+  void insert(const char c, const int position) {
     if (position == 0) {
       node *n = new node(c);
       n->right = root;
@@ -131,6 +184,7 @@ public:
         root->parent = n;
       root = n;
       updateSubtreeSize(root);
+      updateKR(root);
       return;
     }
 
@@ -146,9 +200,10 @@ public:
       rightTree.root->parent = root;
 
     updateSubtreeSize(root);
+    updateKR(root);
   }
 
-  node *find(int position) {
+  node *find(const int position) {
     node *z = root;
     int currentPos = position;
 
@@ -186,6 +241,7 @@ public:
       maxNode->right = rightTree.getRoot();
       rightTree.getRoot()->parent = maxNode;
       updateSubtreeSize(maxNode);
+      updateKR(maxNode);
     }
   }
 
@@ -212,11 +268,13 @@ public:
   }
 
   // Delete implementation using split and join
-  void deleteNode(int position) {
+  void deleteNode(const int position) {
     if (position == 0) {
       find(0);
       root = root->right;
       root->parent = nullptr;
+      updateSubtreeSize(root);
+      updateKR(root);
       return;
     }
 
@@ -236,14 +294,16 @@ public:
       for (int i = 0; i < depth; i++)
         std::cout << "   ";
       std::cout << n->character;
-      std::cout << " : " << n->subtree_size << std::endl;
+      std::cout << " : " << n->subtree_size << " - " << n->kr << " p "
+                << n->base_exp << std::endl;
       visualize(n->left, depth + 1);
     }
   }
 };
 
 int main() {
-  std::vector<char> chars = {'a', 'b', 'c', 'd', 'e', 'f', 'g'};
+  std::vector<char> chars = {'m', 'i', 's', 's', 'i', 's',
+                             's', 'i', 'p', 'p', 'i'};
   SplayTree tree;
   tree.root = tree.buildBalancedTree(chars, 0, chars.size() - 1);
 
@@ -251,7 +311,7 @@ int main() {
   tree.visualize(tree.getRoot());
 
   std::cout << "Find node at position 5" << std::endl;
-  tree.find(5);
+  tree.find(8);
   tree.visualize(tree.getRoot());
 
   tree.insert('h', 3); // Insert 'h' at position 3
