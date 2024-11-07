@@ -46,7 +46,6 @@ public:
 
     updateSubtreeSize(n);
     updateKR(n);
-
     return n;
   }
 
@@ -61,6 +60,7 @@ public:
     }
   }
 
+  // Update the KR has of a node
   void updateKR(node *n) {
     if (n) {
       n->kr = n->character;
@@ -245,15 +245,10 @@ public:
     }
   }
 
-  // Split the tree into two trees based on a poisition
-  // The left tree will contain all the nodes with positions less than or equal
-  // to the position, and the right tree will contain all the nodes with
-  // positions greater than the position
+  // Split the tree into two trees based on a position
   void split(int position, SplayTree &leftTree, SplayTree &rightTree) {
     node *z = find(position);
     if (!z) {
-      std::cout << "Z is null" << std::endl;
-
       leftTree.root = root;
       rightTree.root = nullptr;
     } else {
