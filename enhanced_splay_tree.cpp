@@ -1,7 +1,11 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <ostream>
 #include <vector>
+
+#define normal false
+#define modified true
 
 static uint64_t prime = ((uint64_t)1 << 63) - 59;
 static uint64_t base = 255;
@@ -110,18 +114,18 @@ public:
           leftRotate(x->parent);
         }
       } else if (x->parent->left == x && x->parent->parent->left == x->parent) {
-        if constexpr (Modified == true) {
+        if constexpr (Modified == modified) {
           rightRotate(x->parent);
-          rightRotate(x->parent->parent);
+          rightRotate(x->parent);
         } else {
           rightRotate(x->parent->parent);
           rightRotate(x->parent);
         }
       } else if (x->parent->right == x &&
                  x->parent->parent->right == x->parent) {
-        if constexpr (Modified == true) {
+        if constexpr (Modified == modified) {
           leftRotate(x->parent);
-          leftRotate(x->parent->parent);
+          leftRotate(x->parent);
         } else {
           leftRotate(x->parent->parent);
           leftRotate(x->parent);
@@ -193,22 +197,18 @@ public:
       if (root)
         root->parent = n;
       root = n;
-      updateSubtreeSize(root);
-      updateKR(root);
-      return;
+    } else {
+      SplayTree leftTree, rightTree;
+      split(position - 1, leftTree, rightTree);
+      node *n = new node(c);
+      root = n;
+      root->left = leftTree.root;
+      root->right = rightTree.root;
+      if (leftTree.root)
+        leftTree.root->parent = root;
+      if (rightTree.root)
+        rightTree.root->parent = root;
     }
-
-    SplayTree leftTree, rightTree;
-    split(position - 1, leftTree, rightTree);
-    node *n = new node(c);
-    root = n;
-    root->left = leftTree.root;
-    root->right = rightTree.root;
-    if (leftTree.root)
-      leftTree.root->parent = root;
-    if (rightTree.root)
-      rightTree.root->parent = root;
-
     updateSubtreeSize(root);
     updateKR(root);
   }
@@ -241,7 +241,7 @@ public:
       node *maxNode = root;
       while (maxNode->right)
         maxNode = maxNode->right;
-      splay<false>(maxNode);
+      splay<normal>(maxNode);
       maxNode->right = rightTree.getRoot();
       rightTree.getRoot()->parent = maxNode;
       updateSubtreeSize(maxNode);
@@ -251,7 +251,7 @@ public:
 
   // Split the tree into two trees based on a position
   void split(int position, SplayTree &leftTree, SplayTree &rightTree) {
-    node *z = find<false>(position);
+    node *z = find<normal>(position);
     if (!z) {
       leftTree.root = root;
       rightTree.root = nullptr;
@@ -269,7 +269,7 @@ public:
   // Delete implementation using split and join
   void deleteNode(const int position) {
     if (position == 0) {
-      find<false>(0);
+      find<normal>(0);
       root = root->right;
       root->parent = nullptr;
       updateSubtreeSize(root);
@@ -288,21 +288,103 @@ public:
 
   // Isolate a substring of the tree and return the root of the isolated tree
   node *isolate(int i, int j) {
+    if (i < 0 || j >= root->subtree_size) {
+      return nullptr;
+    }
     if (i == 0 && j == root->subtree_size - 1) {
       return root;
     }
     if (i == 0) {
-      find<true>(j + 1);
+      find<normal>(j + 1);
+      assert(root->left != nullptr);
       return root->left;
     }
     if (j == root->subtree_size - 1) {
-      find<true>(i - 1);
+      find<modified>(i - 1);
+      assert(root->right != nullptr);
       return root->right;
     }
 
-    find<true>(j + 1);
-    find<true>(i - 1);
+    find<normal>(j + 1);
+    find<modified>(i - 1);
+
     return root->right->left;
+  }
+
+  void introduce(int pos, SplayTree &other) {
+    if (!root) {
+      if (other.getRoot())
+        root = other.getRoot();
+    } else if (pos <= root->subtree_size && pos > 0) {
+      isolate(pos, pos - 1);
+
+      if (root->right) {
+        node *toConnect = root->right;
+        toConnect->left = other.getRoot();
+        if (other.getRoot())
+          other.getRoot()->parent = toConnect;
+
+        updateSubtreeSize(toConnect);
+        updateKR(toConnect);
+        updateSubtreeSize(root);
+        updateKR(root);
+      }
+    } else if (pos == 0) {
+      other.join(*this);
+    }
+  }
+
+  SplayTree extract(int i, int j) {
+    if (i < 0 || j >= root->subtree_size || i > j) {
+      std::cout << "Invalid range" << std::endl;
+      return SplayTree();
+    }
+
+    node *newRoot = isolate(i, j);
+    newRoot->parent = nullptr;
+    SplayTree extractedTree;
+    extractedTree.root = newRoot;
+
+    if (root->right) {
+      root->right->left = nullptr;
+      updateSubtreeSize(root->right);
+      updateKR(root->right);
+    }
+    updateSubtreeSize(root);
+    updateKR(root);
+
+    return extractedTree;
+  }
+
+  bool equal(int i, SplayTree &other, int j, int length) {
+    if (i + length - 1 >= root->subtree_size ||
+        j + length - 1 >= other.getRoot()->subtree_size) {
+      std::cout << "Invalid range" << std::endl;
+      return false;
+    }
+
+    node *leftSubstring = isolate(i, i + length - 1);
+    node *rightSubstring = other.isolate(j, j + length - 1);
+
+    if (!leftSubstring || !rightSubstring)
+      return false;
+
+    return leftSubstring->kr == rightSubstring->kr;
+  }
+
+  std::string retrieve(int i, int j) {
+    node *subtree = isolate(i, j);
+    std::string result;
+    inorder(subtree, result);
+    return result;
+  }
+
+  void inorder(node *n, std::string &result) {
+    if (n) {
+      inorder(n->left, result);
+      result.push_back(n->character);
+      inorder(n->right, result);
+    }
   }
 
   // Visualize the tree
@@ -329,7 +411,7 @@ int main() {
   tree.visualize(tree.getRoot());
 
   std::cout << "Find node at position 5" << std::endl;
-  tree.find<false>(8);
+  tree.find<normal>(8);
   tree.visualize(tree.getRoot());
 
   tree.insert('h', 3); // Insert 'h' at position 3
@@ -344,7 +426,7 @@ int main() {
   std::cout << "Root after deletion: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
-  tree.find<false>(3); // Find node at position 3
+  tree.find<normal>(3); // Find node at position 3
   std::cout << "Found node: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
@@ -355,6 +437,44 @@ int main() {
   node *subtring = tree.isolate(3, 6); // Isolate substring from position 3 to 6
   std::cout << "Isolated substring: " << subtring->character << std::endl;
   tree.visualize(subtring);
+
+  std::string firstSubstring =
+      tree.retrieve(3, 4); // Retrieve substring from position 3 to 4
+  std::string secondSubstring =
+      tree.retrieve(6, 7); // Retrieve substring from position 6 to 7
+  bool equal = tree.equal(3, tree, 6, 2); // Check if two substrings are equal
+  std::cout << "Are two substrings (" << firstSubstring << ", "
+            << secondSubstring << ") equal: " << (equal ? "TRUE" : "FALSE")
+            << std::endl;
+
+  firstSubstring = tree.retrieve(0, 6);
+  secondSubstring = tree.retrieve(3, 9);
+  equal = tree.equal(3, tree, 0, 7);
+  std::cout << "Are two substrings (" << firstSubstring << ", "
+            << secondSubstring << ") equal: " << (equal ? "TRUE" : "FALSE")
+            << std::endl;
+
+  node *strangeSubstring = tree.isolate(6, 5);
+  if (strangeSubstring == nullptr) {
+    std::cout << "There is no root->right->left node" << std::endl;
+  } else {
+    tree.visualize(strangeSubstring);
+  }
+
+  std::vector<char> secondChars = {'h', 'e', 'l', 'l', 'o'};
+  SplayTree secondTree;
+  secondTree.root =
+      secondTree.buildBalancedTree(secondChars, 0, secondChars.size() - 1);
+
+  tree.introduce(3, secondTree);
+  std::cout << "Root after introducing substring: " << tree.root->character
+            << std::endl;
+  tree.visualize(tree.getRoot());
+
+  SplayTree extractedTree = tree.extract(2, 6);
+  std::cout << "Extracted tree: " << extractedTree.root->character << std::endl;
+  extractedTree.visualize(extractedTree.getRoot());
+  tree.visualize(tree.getRoot());
 
   return 0;
 }
