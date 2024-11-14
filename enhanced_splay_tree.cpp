@@ -101,7 +101,7 @@ public:
   /* } */
 
   // Splay operation
-  void splay(node *x) {
+  template <auto Modified> void splay(node *x) {
     while (x->parent) {
       if (!x->parent->parent) {
         if (x->parent->left == x) {
@@ -110,12 +110,22 @@ public:
           leftRotate(x->parent);
         }
       } else if (x->parent->left == x && x->parent->parent->left == x->parent) {
-        rightRotate(x->parent->parent);
-        rightRotate(x->parent);
+        if constexpr (Modified == true) {
+          rightRotate(x->parent);
+          rightRotate(x->parent->parent);
+        } else {
+          rightRotate(x->parent->parent);
+          rightRotate(x->parent);
+        }
       } else if (x->parent->right == x &&
                  x->parent->parent->right == x->parent) {
-        leftRotate(x->parent->parent);
-        leftRotate(x->parent);
+        if constexpr (Modified == true) {
+          leftRotate(x->parent);
+          leftRotate(x->parent->parent);
+        } else {
+          leftRotate(x->parent->parent);
+          leftRotate(x->parent);
+        }
       } else if (x->parent->left == x &&
                  x->parent->parent->right == x->parent) {
         rightRotate(x->parent);
@@ -203,14 +213,15 @@ public:
     updateKR(root);
   }
 
-  node *find(const int position) {
+  // Find a node at a given position
+  template <auto Modified> node *find(const int position) {
     node *z = root;
     int currentPos = position;
 
     while (z) {
       int leftSize = z->left ? z->left->subtree_size : 0;
       if (currentPos == leftSize) {
-        splay(z);
+        splay<Modified>(z);
         return root;
       } else if (currentPos < leftSize) {
         z = z->left;
@@ -222,13 +233,6 @@ public:
     return nullptr;
   }
 
-  // Find the minimum node in a subtree
-  node *minimum(node *x) {
-    while (x->left)
-      x = x->left;
-    return x;
-  }
-
   // Join current tree with another tree
   void join(SplayTree &rightTree) {
     if (!root)
@@ -237,7 +241,7 @@ public:
       node *maxNode = root;
       while (maxNode->right)
         maxNode = maxNode->right;
-      splay(maxNode);
+      splay<false>(maxNode);
       maxNode->right = rightTree.getRoot();
       rightTree.getRoot()->parent = maxNode;
       updateSubtreeSize(maxNode);
@@ -247,7 +251,7 @@ public:
 
   // Split the tree into two trees based on a position
   void split(int position, SplayTree &leftTree, SplayTree &rightTree) {
-    node *z = find(position);
+    node *z = find<false>(position);
     if (!z) {
       leftTree.root = root;
       rightTree.root = nullptr;
@@ -265,7 +269,7 @@ public:
   // Delete implementation using split and join
   void deleteNode(const int position) {
     if (position == 0) {
-      find(0);
+      find<false>(0);
       root = root->right;
       root->parent = nullptr;
       updateSubtreeSize(root);
@@ -280,6 +284,25 @@ public:
 
     leftTree.join(rightTree);
     root = leftTree.root;
+  }
+
+  // Isolate a substring of the tree and return the root of the isolated tree
+  node *isolate(int i, int j) {
+    if (i == 0 && j == root->subtree_size - 1) {
+      return root;
+    }
+    if (i == 0) {
+      find<true>(j + 1);
+      return root->left;
+    }
+    if (j == root->subtree_size - 1) {
+      find<true>(i - 1);
+      return root->right;
+    }
+
+    find<true>(j + 1);
+    find<true>(i - 1);
+    return root->right->left;
   }
 
   // Visualize the tree
@@ -306,7 +329,7 @@ int main() {
   tree.visualize(tree.getRoot());
 
   std::cout << "Find node at position 5" << std::endl;
-  tree.find(8);
+  tree.find<false>(8);
   tree.visualize(tree.getRoot());
 
   tree.insert('h', 3); // Insert 'h' at position 3
@@ -321,13 +344,17 @@ int main() {
   std::cout << "Root after deletion: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
-  tree.find(3); // Find node at position 3
+  tree.find<false>(3); // Find node at position 3
   std::cout << "Found node: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
 
   tree.deleteNode(0); // Delete node at position 1
   std::cout << "Root after deletion: " << tree.root->character << std::endl;
   tree.visualize(tree.getRoot());
+
+  node *subtring = tree.isolate(3, 6); // Isolate substring from position 3 to 6
+  std::cout << "Isolated substring: " << subtring->character << std::endl;
+  tree.visualize(subtring);
 
   return 0;
 }
