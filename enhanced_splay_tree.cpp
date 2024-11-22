@@ -53,29 +53,6 @@ public:
     return n;
   }
 
-  /* void updateKR(node *n) { */
-  /*   if (n) { */
-  /*     n->kr = n->character; */
-  /*     n->base_exp = base; */
-  /*     if (n->left) { */
-  /*       n->kr = ((__uint128_t)n->kr + (__uint128_t)n->left->kr * base) %
-   * prime; */
-  /*       n->base_exp = */
-  /*           ((__uint128_t)n->left->base_exp * (__uint128_t)n->base_exp) %
-   * prime; */
-  /*     } */
-  /*     if (n->right) { */
-  /*       n->kr = ((__uint128_t)n->kr * (__uint128_t)n->right->base_exp +
-   * (__uint128_t)n->right->kr) % */
-  /*               prime; */
-  /*       n->base_exp = */
-  /*           ((__uint128_t)n->base_exp * (__uint128_t)n->right->base_exp) % */
-  /*           prime; */
-  /*     } */
-  /*   } */
-  /*   assert(n->base_exp > 0); */
-  /* } */
-
   // Insert a new character at a given position using only split operations
   void insert(const char c, const int position) {
     if (position == 0) {
@@ -249,14 +226,6 @@ public:
     if (!leftSubstring || !rightSubstring)
       return false;
 
-    std::cout << "Left substring: " << leftSubstring->character << std::endl;
-    std::cout << "Right substring: " << rightSubstring->character << std::endl;
-    std::cout << "KR left: " << leftSubstring->kr << std::endl;
-    std::cout << "KR right: " << rightSubstring->kr << std::endl;
-    std::cout << "Left tree: " << std::endl;
-    visualize(root);
-    std::cout << "Right tree: " << std::endl;
-    visualize(other.getRoot());
     return leftSubstring->kr == rightSubstring->kr;
   }
 
@@ -269,7 +238,7 @@ public:
 
     int n_prime =
         std::min(root->subtree_size - i, other.getRoot()->subtree_size - j);
-    std::cout << "N prime: " << n_prime << std::endl;
+    /* std::cout << "N prime: " << n_prime << std::endl; */
     // Check boundary cases
     if (find<normal>(i)->character != other.find<normal>(j)->character) {
       return 0;
@@ -287,14 +256,14 @@ public:
                                                other.getRoot()->subtree_size),
                                           2.0 / 3)));
 
-    std::cout << "Threshold: " << threshold << std::endl;
+    /* std::cout << "Threshold: " << threshold << std::endl; */
     // if yes, just do doubling search, extract the substring and
     // exponential-search the extracted substring until LCP is computed
     if (equal(i, other, j, threshold)) {
-      std::cout << "Substrings are equal at threshold" << std::endl;
+      /* std::cout << "Substrings are equal at threshold" << std::endl; */
       return _LCP_routine(i, other, j, n_prime);
     } else {
-      std::cout << "Substrings are not equal at threshold" << std::endl;
+      /* std::cout << "Substrings are not equal at threshold" << std::endl; */
       SplayTree firstSubstrThresh = extract(i, i + threshold - 1);
       /* std::cout << "First substring of length threshold." << std::endl; */
       /* visualize(firstSubstrThresh.getRoot()); */
@@ -364,7 +333,7 @@ private:
     while (p < n_prime && equal(x, other, i, p)) {
       p = pow(p, 2);
     }
-    return p;
+    return std::min(p, n_prime);
   }
 
   // Doubling search for LCP computation
@@ -414,22 +383,43 @@ private:
     }
   }
 
-  // Update the KR has of a node
   void updateKR(node *n) {
     if (n) {
       n->kr = n->character;
       n->base_exp = base;
       if (n->left) {
-        n->kr = (n->kr + n->left->kr * base) % prime;
-        n->base_exp = (n->left->base_exp * n->base_exp) % prime;
+        n->kr = ((__uint128_t)n->kr + (__uint128_t)n->left->kr * base) % prime;
+        n->base_exp =
+            ((__uint128_t)n->left->base_exp * (__uint128_t)n->base_exp) % prime;
       }
       if (n->right) {
-        n->kr = (n->kr * n->right->base_exp + n->right->kr) % prime;
-        n->base_exp = (n->base_exp * n->right->base_exp) % prime;
+        n->kr = ((__uint128_t)n->kr * (__uint128_t)n->right->base_exp +
+                 (__uint128_t)n->right->kr) %
+                prime;
+        n->base_exp =
+            ((__uint128_t)n->base_exp * (__uint128_t)n->right->base_exp) %
+            prime;
       }
     }
     assert(n->base_exp > 0);
   }
+
+  /* // Update the KR has of a node */
+  /* void updateKR(node *n) { */
+  /*   if (n) { */
+  /*     n->kr = n->character; */
+  /*     n->base_exp = base; */
+  /*     if (n->left) { */
+  /*       n->kr = (n->kr + n->left->kr * base) % prime; */
+  /*       n->base_exp = (n->left->base_exp * n->base_exp) % prime; */
+  /*     } */
+  /*     if (n->right) { */
+  /*       n->kr = (n->kr * n->right->base_exp + n->right->kr) % prime; */
+  /*       n->base_exp = (n->base_exp * n->right->base_exp) % prime; */
+  /*     } */
+  /*   } */
+  /*   assert(n->base_exp > 0); */
+  /* } */
 
   void updateNodeInfo(node *n) {
     updateSubtreeSize(n);
@@ -448,7 +438,6 @@ private:
       } else if (x->parent->left == x && x->parent->parent->left == x->parent) {
         if constexpr (isModified == modified) {
           if (x->parent->parent == root) {
-            std::cout << "Modified" << std::endl;
             rightRotate(x->parent);
             rightRotate(x->parent);
           } else {
@@ -463,7 +452,6 @@ private:
                  x->parent->parent->right == x->parent) {
         if constexpr (isModified == modified) {
           if (x->parent->parent == root) {
-            std::cout << "Modified WARNING" << std::endl;
             leftRotate(x->parent);
             leftRotate(x->parent);
           } else {
@@ -497,10 +485,9 @@ private:
     y->parent = x->parent;
     if (!x->parent)
       root = y;
-    else if (x == x->parent->left) {
-      std::cout << "Weird case right rotate" << std::endl;
+    else if (x == x->parent->left)
       x->parent->left = y;
-    } else
+    else
       x->parent->right = y;
     y->right = x;
     x->parent = y;
@@ -518,10 +505,9 @@ private:
     y->parent = x->parent;
     if (!x->parent)
       root = y;
-    else if (x == x->parent->left) {
-      std::cout << "Weird case left rotate" << std::endl;
+    else if (x == x->parent->left)
       x->parent->left = y;
-    } else
+    else
       x->parent->right = y;
     y->left = x;
     x->parent = y;
@@ -577,10 +563,10 @@ private:
 int main() {
 
   for (int i = 0; i < 10; i++) {
-    uint32_t string_length = rand() % 10000;
+    uint32_t string_length = rand() % 100000;
     std::vector<char> chars;
     chars.reserve(string_length);
-    for (int j = 0; j < string_length; j++) {
+    for (uint32_t j = 0; j < string_length; j++) {
       chars.push_back('a' + rand() % 26);
     }
 
@@ -629,12 +615,12 @@ int main() {
       std::cout << "First string: \t" << firstString << std::endl;
       std::cout << "Second string: \t" << secondString << std::endl;
 
-      firstString =
-          std::string(chars.begin(), chars.end()).substr(start, LCP_value);
-      secondString = std::string(secondChars.begin(), secondChars.end())
-                         .substr(secondStart, LCP_value);
+      firstString = tree.retrieve(start, start + LCP_value);
+      secondString = tree.retrieve(secondStart, secondStart + LCP_value);
       std::cout << "First string: \t" << firstString << std::endl;
       std::cout << "Second string: \t" << secondString << std::endl;
+      std::cout << "First string == Second string: "
+                << (firstString == secondString) << std::endl;
       return 1;
     } else {
       std::cout << "LCP computation is correct" << std::endl;
