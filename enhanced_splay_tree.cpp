@@ -447,9 +447,14 @@ private:
         }
       } else if (x->parent->left == x && x->parent->parent->left == x->parent) {
         if constexpr (isModified == modified) {
-          std::cout << "Modified" << std::endl;
-          rightRotate(x->parent);
-          rightRotate(x->parent);
+          if (x->parent->parent == root) {
+            std::cout << "Modified" << std::endl;
+            rightRotate(x->parent);
+            rightRotate(x->parent);
+          } else {
+            rightRotate(x->parent->parent);
+            rightRotate(x->parent);
+          }
         } else {
           rightRotate(x->parent->parent);
           rightRotate(x->parent);
@@ -457,9 +462,14 @@ private:
       } else if (x->parent->right == x &&
                  x->parent->parent->right == x->parent) {
         if constexpr (isModified == modified) {
-          std::cout << "Modified WARNING" << std::endl;
-          leftRotate(x->parent);
-          leftRotate(x->parent);
+          if (x->parent->parent == root) {
+            std::cout << "Modified WARNING" << std::endl;
+            leftRotate(x->parent);
+            leftRotate(x->parent);
+          } else {
+            leftRotate(x->parent->parent);
+            leftRotate(x->parent);
+          }
         } else {
           leftRotate(x->parent->parent);
           leftRotate(x->parent);
@@ -487,9 +497,10 @@ private:
     y->parent = x->parent;
     if (!x->parent)
       root = y;
-    else if (x == x->parent->left)
+    else if (x == x->parent->left) {
+      std::cout << "Weird case right rotate" << std::endl;
       x->parent->left = y;
-    else
+    } else
       x->parent->right = y;
     y->right = x;
     x->parent = y;
@@ -507,9 +518,10 @@ private:
     y->parent = x->parent;
     if (!x->parent)
       root = y;
-    else if (x == x->parent->left)
+    else if (x == x->parent->left) {
+      std::cout << "Weird case left rotate" << std::endl;
       x->parent->left = y;
-    else
+    } else
       x->parent->right = y;
     y->left = x;
     x->parent = y;
