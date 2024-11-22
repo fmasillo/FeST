@@ -1,4 +1,5 @@
 #include <cassert>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <iostream>
@@ -25,6 +26,17 @@ struct node {
         character(c), kr(c), base_exp(base) {}
 };
 
+// overload << operator for node
+std::ostream &operator<<(std::ostream &os, const node *n) {
+  if (!n) {
+    os << "NULL NODE";
+    return os;
+  }
+  os << n->character << " : " << n->subtree_size << " - " << n->kr << " p "
+     << n->base_exp;
+  return os;
+}
+
 class SplayTree {
 public:
   node *root;
@@ -33,6 +45,21 @@ public:
   node *getRoot() { return root; }
 
   SplayTree() : root(nullptr) {}
+
+  /* // Destructor */
+  /* ~SplayTree() { */
+  /*   if (root) */
+  /*     delete root; */
+  /* } */
+
+  // Manual Destructor
+  void destroy(node *n) {
+    if (n) {
+      destroy(n->left);
+      destroy(n->right);
+      delete n;
+    }
+  }
 
   // Construct a fully balanced binary tree from an array of characters
   node *buildBalancedTree(const std::vector<char> &chars, int start, int end) {
@@ -88,6 +115,10 @@ public:
     int currentPos = position;
 
     while (z) {
+      /* std::cout << "Current position " << currentPos << std::endl; */
+      /* std::cout << "Z = " << z->parent << ", " << z->left << ", " << z->right
+       */
+      /*           << ", " << z << std::endl; */
       int leftSize = z->left ? z->left->subtree_size : 0;
       if (currentPos == leftSize) {
         splay<isModified>(z);
@@ -216,7 +247,7 @@ public:
   bool equal(int i, SplayTree &other, int j, int length) {
     if (i + length - 1 >= root->subtree_size ||
         j + length - 1 >= other.getRoot()->subtree_size) {
-      std::cout << "Invalid range" << std::endl;
+      /* std::cout << "Invalid range" << std::endl; */
       return false;
     }
 
@@ -249,6 +280,7 @@ public:
     if (equal(i, other, j, n_prime)) {
       return n_prime;
     }
+    /* std::cout << "Non-trivial LCP computation" << std::endl; */
 
     // Check at predetermined threshold (2^log_2(n)) if substrings are equal
     int threshold =
@@ -280,7 +312,7 @@ public:
 
   uint32_t _LCP_routine(int i, SplayTree &other, int j, int n_prime) {
     int l_prime = exponentialSearch(i, other, j, n_prime);
-    std::cout << "Exponential search length: " << l_prime << std::endl;
+    /* std::cout << "Exponential search length: " << l_prime << std::endl; */
     /* std::cout << "Going to extract between " << i << " and " << i + l_prime -
      * 1 */
     /*           << std::endl; */
@@ -294,7 +326,7 @@ public:
     /* std::cout << "Second substring" << std::endl; */
     /* secondSubstr.visualize(secondSubstr.getRoot()); */
     int range = doublingSearch(firstSubstr, secondSubstr);
-    std::cout << "Doubling search length: " << range << std::endl;
+    /* std::cout << "Doubling search length: " << range << std::endl; */
     uint32_t LCP = binarySearch(firstSubstr, range / 2, secondSubstr, range / 2,
                                 range / 2) +
                    (range / 2);
@@ -327,12 +359,17 @@ public:
 private:
   // Exponential search for LCP computation
   // Returns the first length at which the exponentiation equality fails
-  int exponentialSearch(int x, SplayTree &other, int i, int n_prime) {
-    int p = 2;
+  uint32_t exponentialSearch(int x, SplayTree &other, int i, uint32_t n_prime) {
+    uint32_t p = 2;
 
     while (p < n_prime && equal(x, other, i, p)) {
+      if ((uint64_t)pow(p, 2) > (uint64_t)n_prime) {
+        p = n_prime;
+        break;
+      }
       p = pow(p, 2);
     }
+
     return std::min(p, n_prime);
   }
 
@@ -369,9 +406,6 @@ private:
     return result;
   }
 
-  // Log any base
-  double logb(double x, double base) { return log(x) / log(base); }
-
   // Update the subtree size of a node
   void updateSubtreeSize(node *n) {
     if (n) {
@@ -383,6 +417,7 @@ private:
     }
   }
 
+  // Update the KR has of a node */
   void updateKR(node *n) {
     if (n) {
       n->kr = n->character;
@@ -562,8 +597,10 @@ private:
 // with a scan if the results are correct
 int main() {
 
-  for (int i = 0; i < 10; i++) {
-    uint32_t string_length = rand() % 100000;
+  double average_time_LCP = 0;
+  double average_time_scan = 0;
+  for (int i = 0; i < 100; i++) {
+    uint32_t string_length = rand() % 10000000;
     std::vector<char> chars;
     chars.reserve(string_length);
     for (uint32_t j = 0; j < string_length; j++) {
@@ -592,14 +629,34 @@ int main() {
     std::cout << "The LCP should be either " << position - start << " or "
               << string_length - start << std::endl;
 
+    auto start_time = std::chrono::high_resolution_clock::now();
     uint32_t LCP_value = tree.LCP(start, secondTree, secondStart);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::cout << "Time taken for LCP computation: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     end_time - start_time)
+                     .count()
+              << " ms" << std::endl;
+    average_time_LCP += std::chrono::duration_cast<std::chrono::microseconds>(
+                            end_time - start_time)
+                            .count();
 
     // chek if the LCP value is correct
+    start_time = std::chrono::high_resolution_clock::now();
     uint32_t scan = 0;
     while (start + scan < string_length && secondStart + scan < string_length &&
            chars[start + scan] == secondChars[secondStart + scan]) {
       scan++;
     }
+    end_time = std::chrono::high_resolution_clock::now();
+    std::cout << "Time taken for scan: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     end_time - start_time)
+                     .count()
+              << " ms" << std::endl;
+    average_time_scan += std::chrono::duration_cast<std::chrono::microseconds>(
+                             end_time - start_time)
+                             .count();
 
     if (scan != LCP_value) {
       std::cout << "Error: LCP value is not correct" << std::endl;
@@ -607,34 +664,40 @@ int main() {
                 << std::endl;
 
       // print the two strings for verification
-      std::string firstString =
-          std::string(chars.begin(), chars.end()).substr(start, scan + 1);
-      std::string secondString =
-          std::string(secondChars.begin(), secondChars.end())
-              .substr(secondStart, scan + 1);
-      std::cout << "First string: \t" << firstString << std::endl;
-      std::cout << "Second string: \t" << secondString << std::endl;
+      /* std::string firstString = */
+      /*     std::string(chars.begin(), chars.end()).substr(start, scan + 1); */
+      /* std::string secondString = */
+      /*     std::string(secondChars.begin(), secondChars.end()) */
+      /*         .substr(secondStart, scan + 1); */
+      /* std::cout << "First string: \t" << firstString << std::endl; */
+      /* std::cout << "Second string: \t" << secondString << std::endl; */
 
-      firstString = tree.retrieve(start, start + LCP_value);
-      secondString = tree.retrieve(secondStart, secondStart + LCP_value);
-      std::cout << "First string: \t" << firstString << std::endl;
-      std::cout << "Second string: \t" << secondString << std::endl;
-      std::cout << "First string == Second string: "
-                << (firstString == secondString) << std::endl;
+      /* firstString = tree.retrieve(start, start + LCP_value); */
+      /* secondString = tree.retrieve(secondStart, secondStart + LCP_value); */
+      /* std::cout << "First string: \t" << firstString << std::endl; */
+      /* std::cout << "Second string: \t" << secondString << std::endl; */
+      /* std::cout << "First string == Second string: " */
+      /*           << (firstString == secondString) << std::endl; */
       return 1;
     } else {
       std::cout << "LCP computation is correct" << std::endl;
       std::cout << "Computed LCP: " << LCP_value << " Scan LCP: " << scan
                 << std::endl;
       // print the two strings for verification
-      std::string firstString = tree.retrieve(start, start + scan);
-      std::string secondString =
-          secondTree.retrieve(secondStart, secondStart + scan);
-      std::cout << "First string: " << firstString << std::endl;
-      std::cout << "Second string: " << secondString << std::endl;
+      /* std::string firstString = tree.retrieve(start, start + scan); */
+      /* std::string secondString = */
+      /*     secondTree.retrieve(secondStart, secondStart + scan); */
+      /* std::cout << "First string: " << firstString << std::endl; */
+      /* std::cout << "Second string: " << secondString << std::endl; */
     }
+    tree.destroy(tree.getRoot());
+    secondTree.destroy(secondTree.getRoot());
   }
 
+  std::cout << "Average time for LCP computation: " << average_time_LCP / 100
+            << " ms" << std::endl;
+  std::cout << "Average time for scan computation: " << average_time_scan / 100
+            << " ms" << std::endl;
   return 0;
 }
 
