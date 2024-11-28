@@ -24,6 +24,9 @@ struct node {
   node(char c)
       : parent(nullptr), left(nullptr), right(nullptr), subtree_size(1),
         character(c), kr(c), base_exp(base) {}
+
+  // Destructor for node
+  ~node() {}
 };
 
 // overload << operator for node
@@ -46,11 +49,8 @@ public:
 
   SplayTree() : root(nullptr) {}
 
-  /* // Destructor */
-  /* ~SplayTree() { */
-  /*   if (root) */
-  /*     delete root; */
-  /* } */
+  // Destructor
+  ~SplayTree() {}
 
   // Manual Destructor
   void destroy(node *n) {
@@ -599,8 +599,9 @@ int main() {
 
   double average_time_LCP = 0;
   double average_time_scan = 0;
-  for (int i = 0; i < 100; i++) {
-    uint32_t string_length = rand() % 10000000;
+  for (int i = 0; i < 10; i++) {
+    std::cout << "Round " << i << std::endl;
+    uint32_t string_length = rand() % 30000000;
     std::vector<char> chars;
     chars.reserve(string_length);
     for (uint32_t j = 0; j < string_length; j++) {
