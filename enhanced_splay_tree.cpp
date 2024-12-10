@@ -208,13 +208,14 @@ public:
   // Extract a substring from the tree and return the root of the extracted
   // subtree
   SplayTree extract(int i, int j) {
+    std::cout << "i: " << i << " j: " << j << std::endl;
+    std::cout << "Root size: " << root->subtree_size << std::endl;
     if (i < 0 || j >= root->subtree_size || i > j) {
-      std::cout << "i: " << i << " j: " << j << std::endl;
-      std::cout << "Root size: " << root->subtree_size << std::endl;
       std::cout << "Invalid range" << std::endl;
       return SplayTree();
     }
     if (i == 0 && j == root->subtree_size - 1) {
+      std::cout << "Extracting whole tree" << std::endl;
       SplayTree extractedTree;
       extractedTree.root = root;
       root = nullptr;
@@ -255,7 +256,9 @@ public:
     }
 
     node *leftSubstring = isolate(i, i + length - 1);
+    visualize(leftSubstring);
     node *rightSubstring = other.isolate(j, j + length - 1);
+    visualize(rightSubstring);
 
     if (!leftSubstring || !rightSubstring)
       return false;
@@ -301,6 +304,7 @@ public:
                                           2.0 / 3)));
 
     std::cout << "Threshold: " << threshold << std::endl;
+    bool overlap = false;
     // if yes, just do exponential search, extract the substring and
     // doubling search the extracted substring until LCP is computed
     if (equal(i, other, j, threshold)) {
@@ -311,11 +315,14 @@ public:
       SplayTree firstSubstrThresh, secondSubstrThresh;
       int i_extracted = 0, j_extracted = 0;
       if (i + threshold - 1 >= j && &other == this) {
-        std::cout << "Same string and overlapping substrings" << std::endl;
+        std::cout
+            << "Same string and overlapping substrings of length threshold"
+            << std::endl;
         firstSubstrThresh = extract(i, j + threshold - 1);
         firstSubstrThresh.visualize(firstSubstrThresh.getRoot());
         secondSubstrThresh.root = firstSubstrThresh.root;
         j_extracted = j - i;
+        overlap = true;
       } else {
         firstSubstrThresh = extract(i, i + threshold - 1);
         std::cout << "First substring of length threshold." << std::endl;
@@ -325,10 +332,11 @@ public:
                           j - ((&other == this) * threshold) + threshold - 1);
         std::cout << "Second substring of length threshold." << std::endl;
         visualize(secondSubstrThresh.getRoot());
+        std::cout << "Extracted substrings" << std::endl;
       }
-      uint32_t LCP_value =
-          firstSubstrThresh._LCP_routine(i_extracted, secondSubstrThresh,
-                                         j_extracted, n_prime, &other == this);
+      uint32_t LCP_value = firstSubstrThresh._LCP_routine(
+          i_extracted, secondSubstrThresh, j_extracted, n_prime,
+          (&other == this) & overlap);
       if (i + threshold - 1 >= j && &other == this) {
         introduce(i, firstSubstrThresh);
       } else {
@@ -341,10 +349,10 @@ public:
 
   uint32_t _LCP_routine(int i, SplayTree &other, int j, int n_prime,
                         bool sameString) {
+    std::cout << "In _LCP_routine -- i: " << i << " j: " << j
+              << " n_prime: " << n_prime << std::endl;
     int l_prime = exponentialSearch(i, other, j, n_prime);
     std::cout << "Exponential search length: " << l_prime << std::endl;
-    std::cout << "Going to extract between " << i << " and " << i + l_prime - 1
-              << std::endl;
     std::cout << "&other: " << &other << " this: " << this << std::endl;
     std::cout << "&other.root: " << &other.root << " this.root: " << &this->root
               << std::endl;
@@ -352,12 +360,19 @@ public:
     int i_extracted = 0, j_extracted = 0;
     if (i + l_prime - 1 >= j && sameString) { // same string and overlapping
       std::cout << "Same string and overlapping substrings" << std::endl;
-      firstSubstr = this->extract(i, i + l_prime - 1);
-      secondSubstr.root = firstSubstr.root;
+      std::cout << "Going to extract between " << i << " and "
+                << j + l_prime - 1 << std::endl;
+
+      firstSubstr = this->extract(i, j + l_prime - 1);
+      secondSubstr = firstSubstr;
       j_extracted = j - i;
     } else {
+      std::cout << "Going to extract between " << i << " and "
+                << i + l_prime - 1 << std::endl;
       firstSubstr = this->extract(i, i + l_prime - 1);
+      visualize(firstSubstr.getRoot());
       secondSubstr = other.extract(j, j + l_prime - 1);
+      visualize(secondSubstr.getRoot());
     }
     /* std::cout << "First substring" << std::endl; */
     /* firstSubstr.visualize(firstSubstr.getRoot()); */
@@ -368,13 +383,13 @@ public:
     /* secondSubstr.visualize(secondSubstr.getRoot()); */
     int range =
         doublingSearch(i_extracted, firstSubstr, j_extracted, secondSubstr);
-    /* std::cout << "Doubling search length: " << range << std::endl; */
+    std::cout << "Doubling search length: " << range << std::endl;
     uint32_t LCP =
         binarySearch(firstSubstr, i_extracted + range / 2, secondSubstr,
-                     range / 2, j_extracted + range / 2) +
+                     j_extracted + range / 2, range / 2) +
         (range / 2);
 
-    /* std::cout << "LCP: " << LCP << std::endl; */
+    std::cout << "LCP: " << LCP << std::endl;
     if (i + l_prime - 1 >= j && sameString) {
       this->introduce(i, firstSubstr);
     } else {
@@ -425,6 +440,8 @@ private:
   int doublingSearch(int i, SplayTree &firstSubstring, int j,
                      SplayTree &secondSubstring) {
     int length = 1;
+    std::cout << "FirstSubstring.getRoot()->subtree_size: "
+              << firstSubstring.getRoot()->subtree_size << std::endl;
     while (firstSubstring.equal(i, secondSubstring, j, length) &&
            length < firstSubstring.getRoot()->subtree_size) {
       length *= 2;
