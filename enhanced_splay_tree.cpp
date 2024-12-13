@@ -205,6 +205,8 @@ public:
   // subtree
   SplayTree extract(int i, int j) {
     if (i < 0 || j >= root->subtree_size || i > j) {
+      std::cout << "i: " << i << " j: " << j
+                << " root size: " << root->subtree_size << std::endl;
       std::cout << "Invalid range for extract" << std::endl;
       return SplayTree();
     }
@@ -257,13 +259,27 @@ public:
       /* std::cout << "Invalid range" << std::endl; */
       return false;
     }
+
+    uint64_t kr1 = 0, kr2 = 0;
     node *leftSubstring = isolate(i, i + length - 1);
-    node *rightSubstring = other.isolate(j, j + length - 1);
-
-    if (!leftSubstring || !rightSubstring)
+    if (leftSubstring) {
+      kr1 = leftSubstring->kr;
+    } else {
       return false;
+    }
+    std::cout << "Left substring in equal " << std::endl;
+    visualize(leftSubstring);
 
-    return leftSubstring->kr == rightSubstring->kr;
+    node *rightSubstring = other.isolate(j, j + length - 1);
+    if (rightSubstring) {
+      kr2 = rightSubstring->kr;
+    } else {
+      return false;
+    }
+
+    std::cout << "Right substring in equal " << std::endl;
+    visualize(rightSubstring);
+    return kr1 == kr2;
   }
 
   // Compute the LCP of two substrings
@@ -297,19 +313,24 @@ public:
                                                other.getRoot()->subtree_size),
                                           2.0 / 3)));
 
+    std::cout << "Threshold: " << threshold << std::endl;
     bool overlap = false;
     // if yes, just do exponential search, extract the substring and
     // doubling search the extracted substring until LCP is computed
     if (equal(i, other, j, threshold)) {
+      std::cout << "Strings equal at threshold" << std::endl;
       return _LCP_routine(i, other, j, n_prime, &other == this);
     } else { // first extract then do LCP computation
+      std::cout << "Strings not equal at threshold" << std::endl;
       SplayTree firstSubstrThresh, secondSubstrThresh;
       int i_extracted = 0, j_extracted = 0;
       if (i + threshold - 1 >= j && &other == this) {
+        std::cout << "Overlap" << std::endl;
         firstSubstrThresh = extract(i, j + threshold - 1);
         j_extracted = j - i;
         overlap = true;
       } else {
+        std::cout << "No overlap" << std::endl;
         firstSubstrThresh = extract(i, i + threshold - 1);
         secondSubstrThresh =
             other.extract(j - ((&other == this) * threshold),
@@ -317,7 +338,8 @@ public:
       }
       uint32_t LCP_value = firstSubstrThresh._LCP_routine(
           i_extracted, (overlap) ? firstSubstrThresh : secondSubstrThresh,
-          j_extracted, n_prime, (&other == this) & overlap);
+          j_extracted, firstSubstrThresh.getRoot()->subtree_size - j_extracted,
+          (&other == this) & overlap);
       if (i + threshold - 1 >= j && &other == this) {
         introduce(i, firstSubstrThresh);
       } else {
@@ -330,6 +352,9 @@ public:
 
   uint32_t _LCP_routine(int i, SplayTree &other, int j, int n_prime,
                         bool sameString) {
+    std::cout << "this: " << this << " other: " << &other << std::endl;
+    std::cout << "i: " << i << " j: " << j << " n_prime: " << n_prime
+              << " sameString: " << sameString << std::endl;
     int l_prime = exponentialSearch(i, other, j, n_prime);
     std::cout << "Exponential search: " << l_prime << std::endl;
     SplayTree firstSubstr, secondSubstr;
@@ -376,16 +401,26 @@ public:
 private:
   // Exponential search for LCP computation
   // Returns the first length at which the exponentiation equality fails
-  uint32_t exponentialSearch(int x, SplayTree &other, int i, uint32_t n_prime) {
+  uint32_t exponentialSearch(int i, SplayTree &other, int j, uint32_t n_prime) {
     uint32_t p = 2;
 
-    while (p < n_prime && equal(x, other, i, p)) {
-      if ((uint64_t)pow(p, 2) > (uint64_t)n_prime) {
+    while (p < n_prime && equal(i, other, j, p)) {
+      std::cout << "p: " << p << std::endl;
+      std::cout << "First substring " << std::endl;
+      visualize(isolate(i, i + p - 1));
+      std::cout << "Second substring " << std::endl;
+      visualize(other.isolate(j, j + p - 1));
+      if ((uint64_t)pow((uint64_t)p, 2) >= (uint64_t)n_prime) {
         p = n_prime;
         break;
       }
       p = pow(p, 2);
     }
+    std::cout << "Exponential search: " << p << std::endl;
+    std::cout << "First substring " << std::endl;
+    visualize(isolate(i, i + p - 1));
+    std::cout << "Second substring " << std::endl;
+    visualize(other.isolate(j, j + p - 1));
 
     return std::min(p, n_prime);
   }
