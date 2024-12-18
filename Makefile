@@ -3,7 +3,7 @@
 # Set variables
 
 COMPILER = g++
-CXXFLAGS = -Wall -O3 -g -std=c++20 -march=native
+CXXFLAGS = -Wall -O3 -g -std=c++20 -march=native -ffast-math # -fsanitize=address
 
 all: splay_tree enhanced_splay_tree
 

@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <iostream>
 #include <ostream>
-#include <vector>
 
 #define normal false
 #define modified true
@@ -16,8 +15,8 @@ struct node {
   node *parent;
   node *left;
   node *right;
-  int subtree_size;
-  char character;
+  uint32_t subtree_size;
+  unsigned char character;
   uint64_t kr;
   uint64_t base_exp;
 
@@ -25,9 +24,26 @@ struct node {
       : parent(nullptr), left(nullptr), right(nullptr), subtree_size(1),
         character(c), kr(c), base_exp(base) {}
 
+  node(node *n) {
+    parent = n->parent;
+    left = n->left;
+    right = n->right;
+    subtree_size = n->subtree_size;
+    character = n->character;
+    kr = n->kr;
+    base_exp = n->base_exp;
+  }
+
   // Destructor for node
-  ~node() {}
+  ~node() {
+    /* std::cout << "Destroying node: " << this << std::endl; */
+    if (left)
+      delete left;
+    if (right)
+      delete right;
+  }
 };
+static node *placeholder = new node('0');
 
 // overload << operator for node
 std::ostream &operator<<(std::ostream &os, const node *n) {
@@ -35,15 +51,15 @@ std::ostream &operator<<(std::ostream &os, const node *n) {
     os << "NULL NODE";
     return os;
   }
-  os << n->character << " : " << n->subtree_size << " - " << n->kr << " p "
-     << n->base_exp;
+  os << &n << " " << n->character << " : " << n->subtree_size << " - " << n->kr
+     << " p " << n->base_exp;
   return os;
 }
 
 class SplayTree {
-public:
   node *root;
 
+public:
   // Getter for root
   node *getRoot() { return root; }
 
@@ -55,20 +71,26 @@ public:
 
   SplayTree(node *n) : root(n) {}
 
-  /* // Destructor */
-  /* ~SplayTree() { destroy(root); } */
+  // Destructor
+  ~SplayTree() {
+    /* std::cout << "Destroying tree " << this << " with root " << &root */
+    /*           << std::endl; */
+    if (root)
+      delete root;
+  }
 
-  /* // Manual Destructor */
-  /* void destroy(node *n) { */
-  /*   if (n) { */
-  /*     destroy(n->left); */
-  /*     destroy(n->right); */
-  /*     delete n; */
-  /*   } */
-  /* } */
+  // Manual Destructor
+  void destroy(node *n) {
+    /* std::cout << "Destroying node: " << n << std::endl; */
+    if (n) {
+      destroy(n->left);
+      destroy(n->right);
+      delete n;
+    }
+  }
 
   // Insert a new character at a given position using only split operations
-  void insert(const char c, const int position) {
+  void insert(const unsigned char c, const uint32_t position) {
     if (position == 0) {
       node *n = new node(c);
       n->right = root;
@@ -136,85 +158,110 @@ public:
   }
 
   // Introduce a substring from another tree at a given position
-  void introduce(int pos, SplayTree &other) {
+  void introduce(const uint32_t pos, SplayTree &other) {
     if (!root) {
-      if (other.getRoot())
-        root = other.getRoot();
+      if (other.root)
+        root = other.root;
+      other.root = nullptr;
     } else if (pos == root->subtree_size) {
+      /* visualize(root); */
+      /* visualize(other.getRoot()); */
       find<normal>(pos - 1);
-      root->right = other.getRoot();
-      if (other.getRoot())
-        other.getRoot()->parent = root;
+      root->right = other.root;
+      root->right->parent = root;
+      other = nullptr;
+      /* if (other.getRoot()) */
+      /*   other.getRoot()->parent = root; */
       updateNodeInfo(root);
-    } else if (pos <= root->subtree_size && pos > 0) {
+    } else if (pos < root->subtree_size && pos > 0) {
       isolate(pos, pos - 1);
 
       if (root->right) {
-        node *toConnect = root->right;
-        toConnect->left = other.getRoot();
-        if (other.getRoot())
-          other.getRoot()->parent = toConnect;
+        /* node *toConnect = root->right; */
+        root->right->left = other.root;
+        root->right->left->parent = root->right;
+        other.root = nullptr;
+        /* if (other.root) */
+        /*   other.root->parent = root->right; */
 
-        updateNodeInfo(toConnect);
+        updateNodeInfo(root->right);
+        updateNodeInfo(root);
+      } else {
+        root->right = other.root;
+        root->right->parent = root;
+        other.root = nullptr;
+        /* if (other.root) */
+        /*   other.root->parent = root; */
         updateNodeInfo(root);
       }
     } else if (pos == 0) {
-      root = other.join(*this);
+      find<normal>(other.root->subtree_size - 1);
+      other.root->right = root;
+      other.root->right->parent = other.root;
+      root = other.root;
+      other.root = nullptr;
+      /* root = other.join(*this); */
     }
   }
 
   // Extract a substring from the tree and return the root of the extracted
   // subtree
-  void extract(int i, int j, SplayTree &other) {
+  void extract(const uint32_t i, const uint32_t j, SplayTree &other) {
     if (i < 0 || j >= root->subtree_size || i > j) {
       std::cout << "Invalid range for extract" << std::endl;
       return;
     }
     if (i == 0 && j == root->subtree_size - 1) {
+      /* std::cout << "Extracting full tree" << std::endl; */
       /* SplayTree extractedTree; */
       /* extractedTree.root = root; */
+      other.root = root;
       root = nullptr;
+      return;
       /* return extractedTree; */
-      other = SplayTree(root);
     }
     if (i == 0) {
+      /* std::cout << "Extracting left subtree" << std::endl; */
       find<normal>(j + 1);
-      node *newRoot = root->left;
+      /* node *newRoot = root->left; */
+      other.root = root->left;
+      other.root->parent = nullptr;
       root->left = nullptr;
       updateNodeInfo(root);
-      newRoot->parent = nullptr;
-      other = SplayTree(newRoot);
+      return;
       /* SplayTree extractedTree; */
       /* extractedTree.root = newRoot; */
       /* return extractedTree; */
       /* return SplayTree(newRoot); */
     }
 
-    std::cout << "Going to isolate" << std::endl;
+    /* std::cout << "Going to isolate" << std::endl; */
     node *newRoot = isolate(i, j);
-    std::cout << "Isolated" << std::endl;
-    newRoot->parent = nullptr;
-    std::cout << "Parent set to nullptr" << std::endl;
-    other.root = newRoot;
-    std::cout << "Extracted tree created" << std::endl;
+    other.root = isolate(i, j); // newRoot;
+    other.root->parent = nullptr;
+    /* std::cout << "Isolated" << std::endl; */
+    /* newRoot->parent = nullptr; */
+    /* newRoot->parent->left = nullptr; */
+    /* std::cout << "Parent set to nullptr" << std::endl; */
+    /* std::cout << "Extracted tree created" << std::endl; */
 
     if (root->right && j != root->subtree_size - 1) {
       root->right->left = nullptr;
-      std::cout << "Left of root's right set to nullptr" << std::endl;
+      /* std::cout << "Left of root's right set to nullptr" << std::endl; */
       updateNodeInfo(root->right);
-      std::cout << "Updated node info of root's right" << std::endl;
+      /* std::cout << "Updated node info of root's right" << std::endl; */
     } else {
       root->right = nullptr;
     }
 
     updateNodeInfo(root);
-    std::cout << "Updated node info of root" << std::endl;
-
+    /* std::cout << "Updated node info of root" << std::endl; */
+    return;
     /* return extractedTree; */
   }
 
   // Retrieve a substring from the tree
-  std::string retrieve(int i, int j) {
+  std::string retrieve(const uint32_t i, const uint32_t j) {
     node *subtree = isolate(i, j);
     std::string result;
     inorder(subtree, result);
@@ -222,7 +269,8 @@ public:
   }
 
   // Substring equality check
-  bool equal(int i, SplayTree &other, int j, int length) {
+  bool equal(const uint32_t i, SplayTree &other, const uint32_t j,
+             const uint32_t length) {
     if (i + length - 1 >= root->subtree_size ||
         j + length - 1 >= other.getRoot()->subtree_size) {
       return false;
@@ -247,13 +295,13 @@ public:
   }
 
   // Compute the LCP of two substrings
-  uint32_t LCP(int i, SplayTree &other, int j) {
+  uint32_t LCP(uint32_t i, SplayTree &other, uint32_t j) {
     if (i >= root->subtree_size || j >= other.getRoot()->subtree_size) {
       std::cout << "Invalid range for LCP computation" << std::endl;
       return 0;
     }
     if (&other == this && i > j) {
-      int tmp = i;
+      uint32_t tmp = i;
       i = j;
       j = tmp;
     }
@@ -261,19 +309,19 @@ public:
     int n_prime =
         std::min(root->subtree_size - i, other.getRoot()->subtree_size - j);
     // Check boundary cases
-    std::cout << "Going to check boundary cases" << std::endl;
+    /* std::cout << "Going to check boundary cases" << std::endl; */
     if (find<normal>(i)->character != other.find<normal>(j)->character) {
       return 0;
     }
-    std::cout << "Checked first boundary case" << std::endl;
+    /* std::cout << "Checked first boundary case" << std::endl; */
     if (!equal(i, other, j, 2)) {
       return 1;
     }
-    std::cout << "Checked second boundary case" << std::endl;
+    /* std::cout << "Checked second boundary case" << std::endl; */
     if (equal(i, other, j, n_prime)) {
       return n_prime;
     }
-    std::cout << "Checked third boundary case" << std::endl;
+    /* std::cout << "Checked third boundary case" << std::endl; */
 
     // Check at predetermined threshold (2^log_2(n)) if substrings are equal
     int threshold =
@@ -285,35 +333,53 @@ public:
     // if yes, just do exponential search, extract the substring and
     // doubling search the extracted substring until LCP is computed
     if (equal(i, other, j, threshold)) {
-      std::cout << "Going to do LCP computation for strings equal at threshold"
-                << std::endl;
-      return _LCP_routine(i, other, j, n_prime, &other == this);
+      SplayTree firstSubstr = nullptr, secondSubstr = nullptr;
+      /* std::cout << "Going to do LCP computation for strings equal at
+       * threshold" */
+      /* << std::endl; */
+      return _LCP_routine(i, other, j, n_prime, &other == this, firstSubstr,
+
+                          secondSubstr);
+
     } else { // first extract then do LCP computation
-      std::cout
-          << "Going to do LCP computation for strings not equal at threshold"
-          << std::endl;
-      SplayTree firstSubstrThresh, secondSubstrThresh;
+      /* std::cout */
+      /*     << "Going to do LCP computation for strings not equal at threshold"
+       */
+      /*     << std::endl; */
+      SplayTree firstSubstrThresh = nullptr, secondSubstrThresh = nullptr;
+      SplayTree firstSubstr = nullptr, secondSubstr = nullptr;
+
       int i_extracted = 0, j_extracted = 0;
       if (i + threshold - 1 >= j && &other == this) {
         /* firstSubstrThresh = extract(i, j + threshold - 1); */
+        /* std::cout << "Extracting substring for LCP computation" << std::endl;
+         */
         extract(i, j + threshold - 1, firstSubstrThresh);
         j_extracted = j - i;
         overlap = true;
       } else {
         /* firstSubstrThresh = extract(i, i + threshold - 1); */
+        /* std::cout << "Extracting first substring for LCP computation" */
+        /*           << std::endl; */
         extract(i, i + threshold - 1, firstSubstrThresh);
         /* secondSubstrThresh = */
         /*     other.extract(j - ((&other == this) * threshold), */
         /*                   j - ((&other == this) * threshold) + threshold -
          * 1); */
+        /* visualize(firstSubstrThresh.getRoot()); */
+        /* std::cout << "Extracting second substring for LCP computation" */
+        /*           << std::endl; */
         other.extract(j - ((&other == this) * threshold),
                       j - ((&other == this) * threshold) + threshold - 1,
                       secondSubstrThresh);
+        /* visualize(secondSubstrThresh.getRoot()); */
       }
+
       uint32_t LCP_value = firstSubstrThresh._LCP_routine(
           i_extracted, (overlap) ? firstSubstrThresh : secondSubstrThresh,
           j_extracted, firstSubstrThresh.getRoot()->subtree_size - j_extracted,
-          (&other == this) & overlap);
+          (&other == this) & overlap, firstSubstr, secondSubstr);
+
       if (i + threshold - 1 >= j && &other == this) {
         introduce(i, firstSubstrThresh);
       } else {
@@ -331,20 +397,22 @@ public:
       visualize(n->right, depth + 1);
       for (int i = 0; i < depth; i++)
         std::cout << "   ";
-      std::cout << n->character;
-      std::cout << " : " << n->subtree_size << " - " << n->kr << " p "
-                << n->base_exp << std::endl;
+      std::cout << n << std::endl;
+      /* std::cout << n->character; */
+      /* std::cout << " : " << n->subtree_size << " - " << n->kr << " p " */
+      /*           << n->base_exp << std::endl; */
       visualize(n->left, depth + 1);
     }
   }
 
 private:
   // Construct a fully balanced binary tree from an array of characters
-  node *buildBalancedTree(const std::string &chars, int start, int end) {
+  node *buildBalancedTree(const std::string &chars, const int32_t start,
+                          const int32_t end) {
     if (start > end)
       return nullptr;
 
-    int mid = start + (end - start) / 2;
+    int32_t mid = start + (end - start) / 2;
     node *n = new node(chars[mid]);
     n->left = buildBalancedTree(chars, start, mid - 1);
     n->right = buildBalancedTree(chars, mid + 1, end);
@@ -359,7 +427,7 @@ private:
   }
 
   // Isolate a substring of the tree and return the root of the isolated tree
-  node *isolate(int i, int j) {
+  node *isolate(const uint32_t i, const uint32_t j) {
     if (i < 0 || j >= root->subtree_size) {
       return nullptr;
     }
@@ -384,51 +452,59 @@ private:
   }
 
   // LCP subroutine
-  uint32_t _LCP_routine(int i, SplayTree &other, int j, int n_prime,
-                        bool sameString) {
+  uint32_t _LCP_routine(const uint32_t i, SplayTree &other, const uint32_t j,
+                        const uint32_t n_prime, const bool sameString,
+                        SplayTree &firstSubstr, SplayTree &secondSubstr) {
+
     int l_prime = exponentialSearch(i, other, j, n_prime);
-    std::cout << "L prime: " << l_prime << std::endl;
-    SplayTree firstSubstr, secondSubstr;
+    /* std::cout << "L prime: " << l_prime << std::endl; */
     int i_extracted = 0, j_extracted = 0;
     if (i + l_prime - 1 >= j && sameString) { // same string and overlapping
       /* firstSubstr = this->extract(i, j + l_prime - 1); */
       this->extract(i, j + l_prime - 1, firstSubstr);
       j_extracted = j - i;
-      std::cout << "J extracted: " << j_extracted << std::endl;
+      /* std::cout << "J extracted: " << j_extracted << std::endl; */
 
     } else {
-      std::cout << "Extracting substrings" << std::endl;
+      /* std::cout << "Extracting substrings" << std::endl; */
       /* firstSubstr = SplayTree(this->extract(i, i + l_prime - 1)); */
       this->extract(i, i + l_prime - 1, firstSubstr);
-      std::cout << "First substring size: "
-                << firstSubstr.getRoot()->subtree_size << std::endl;
+      /* std::cout << "First substring size: " */
+      /*           << firstSubstr.getRoot()->subtree_size << std::endl; */
       /* secondSubstr = other.extract(j, j + l_prime - 1); */
       other.extract(j, j + l_prime - 1, secondSubstr);
-      std::cout << "Second substring size: "
-                << secondSubstr.getRoot()->subtree_size << std::endl;
+      /* std::cout << "Second substring size: " */
+      /*           << secondSubstr.getRoot()->subtree_size << std::endl; */
     }
-    std::cout << "Extracted substrings" << std::endl;
+    /* std::cout << "Extracted substrings" << std::endl; */
     int range = doublingSearch(i_extracted, firstSubstr, j_extracted,
                                j_extracted ? firstSubstr : secondSubstr);
-    std::cout << "Range: " << range << std::endl;
+    /* std::cout << "Range: " << range << std::endl; */
     uint32_t LCP = binarySearch(firstSubstr, i_extracted + range / 2,
                                 j_extracted ? firstSubstr : secondSubstr,
                                 j_extracted + range / 2, range / 2) +
                    (range / 2);
-    std::cout << "LCP: " << LCP << std::endl;
+    /* std::cout << "LCP: " << LCP << std::endl; */
 
     if (i + l_prime - 1 >= j && sameString) {
       introduce(i, firstSubstr);
+      /* std::cout << "Introduced first substring" << std::endl; */
+      /* visualize(root); */
     } else {
       this->introduce(i, firstSubstr);
+      /* std::cout << "Introduced first substring" << std::endl; */
+      /* visualize(root); */
       other.introduce(j, secondSubstr);
+      /* std::cout << "Introduced second substring" << std::endl; */
+      /* visualize(other.getRoot()); */
     }
     return LCP;
   }
 
   // Exponential search for LCP computation
   // Returns the first length at which the exponentiation equality fails
-  uint32_t exponentialSearch(int i, SplayTree &other, int j, uint32_t n_prime) {
+  uint32_t exponentialSearch(const uint32_t i, SplayTree &other,
+                             const uint32_t j, const uint32_t n_prime) {
     uint32_t p = 2;
 
     while (p < n_prime && equal(i, other, j, p)) {
@@ -444,9 +520,9 @@ private:
 
   // Doubling search for LCP computation
   // Returns the first length at which the doubling equality fails
-  int doublingSearch(int i, SplayTree &firstSubstring, int j,
-                     SplayTree &secondSubstring) {
-    int length = 1;
+  uint32_t doublingSearch(const uint32_t i, SplayTree &firstSubstring,
+                          const uint32_t j, SplayTree &secondSubstring) {
+    uint32_t length = 1;
     while (firstSubstring.equal(i, secondSubstring, j, length) &&
            length < firstSubstring.getRoot()->subtree_size) {
       length *= 2;
@@ -455,8 +531,9 @@ private:
   }
 
   // Binary search between two splay trees in a range
-  int binarySearch(SplayTree &firstSubstring, int i, SplayTree &secondSubstring,
-                   int j, int size_range) {
+  uint32_t binarySearch(SplayTree &firstSubstring, const uint32_t i,
+                        SplayTree &secondSubstring, const uint32_t j,
+                        const uint32_t size_range) {
     assert(firstSubstring.getRoot()->subtree_size ==
            secondSubstring.getRoot()->subtree_size);
     int low = 0, high = size_range;
@@ -603,25 +680,31 @@ private:
 
   // Join current tree with another tree
   node *join(SplayTree &rightTree) {
+    std::cout << "Joining trees" << std::endl;
     if (!root) {
-      root = rightTree.getRoot();
-      return root;
-    } else if (rightTree.getRoot()) {
-      find<normal>(root->subtree_size - 1);
-      node *maxNode = root;
-      /* visualize(maxNode); */
-      assert(!maxNode->right);
-      maxNode->right = rightTree.getRoot();
-      rightTree.getRoot()->parent = maxNode;
+      std::cout << "Root is nullptr" << std::endl;
+      root = rightTree.root;
       rightTree.root = nullptr;
-      updateNodeInfo(maxNode);
-      return maxNode;
+      return root;
+    } else if (rightTree.root) {
+      std::cout << "Root is not nullptr" << std::endl;
+      find<normal>(root->subtree_size - 1);
+      /* node *maxNode = root; */
+      /* visualize(maxNode); */
+      assert(!root->right);
+      root->right = rightTree.root;
+      root->right->parent = root;
+      /* rightTree.getRoot()->parent = maxNode; */
+      rightTree.root = nullptr;
+      updateNodeInfo(root);
+      return root;
     }
     return nullptr;
   }
 
   // Split the tree into two trees based on a position
-  void split(int position, SplayTree &leftTree, SplayTree &rightTree) {
+  void split(const uint32_t position, SplayTree &leftTree,
+             SplayTree &rightTree) {
     node *z = find<normal>(position);
     if (!z) {
       leftTree.root = root;
@@ -657,7 +740,7 @@ int main() {
   srand(time(0));
   for (int i = 0; i < 10; i++) {
     std::cout << "Round " << i << std::endl;
-    uint32_t string_length = rand() % 10000000;
+    uint32_t string_length = rand() % 100000000;
     std::string chars;
     chars.reserve(string_length);
     for (uint32_t j = 0; j < string_length; j++) {
@@ -672,7 +755,9 @@ int main() {
               << std::endl;
     secondChars.erase(secondChars.begin() + position);
 
+    std::cout << "Building first tree" << std::endl;
     SplayTree tree(chars);
+    std::cout << "Building second tree" << std::endl;
     SplayTree secondTree(secondChars);
 
     int start = rand() % 100;
@@ -751,8 +836,16 @@ int main() {
       /* std::cout << "First string: " << firstString << std::endl; */
       /* std::cout << "Second string: " << secondString << std::endl; */
     }
+    /* std::cout << "Destroying trees" << std::endl; */
+    /* start_time = std::chrono::high_resolution_clock::now(); */
     /* tree.destroy(tree.getRoot()); */
     /* secondTree.destroy(secondTree.getRoot()); */
+    /* end_time = std::chrono::high_resolution_clock::now(); */
+    /* std::cout << "Time taken for tree destruction: " */
+    /*           << std::chrono::duration_cast<std::chrono::microseconds>( */
+    /*                  end_time - start_time) */
+    /*                  .count() */
+    /*           << " ms" << std::endl; */
   }
 
   std::cout << "Average time for LCP computation: " << average_time_LCP / 100
@@ -760,27 +853,29 @@ int main() {
   std::cout << "Average time for scan computation: " << average_time_scan / 100
             << " ms" << std::endl;
 
-  // test LCP computation on the same string
-  std::string chars = {'m', 'i', 's', 's', 'i', 's', 'a'};
-  SplayTree tree(chars);
-  uint32_t LCP_value = tree.LCP(1, tree, 4);
-  std::cout << "LCP: " << LCP_value << std::endl;
-  assert(LCP_value == 2);
+  {
+    // test LCP computation on the same string
+    std::string chars = {'m', 'i', 's', 's', 'i', 's', 'a'};
+    SplayTree tree(chars);
+    uint32_t LCP_value = tree.LCP(1, tree, 4);
+    std::cout << "LCP: " << LCP_value << std::endl;
+    assert(LCP_value == 2);
 
-  // test LCP computation on the same string and overlapping LCP
-  std::string secondChars = {'m', 'i', 's', 's', 'i', 's', 's', 'i', 'a'};
-  SplayTree secondTree(secondChars);
-  LCP_value = secondTree.LCP(1, secondTree, 4);
-  std::cout << "LCP: " << LCP_value << std::endl;
-  assert(LCP_value == 4);
+    // test LCP computation on the same string and overlapping LCP
+    std::string secondChars = {'m', 'i', 's', 's', 'i', 's', 's', 'i', 'a'};
+    SplayTree secondTree(secondChars);
+    LCP_value = secondTree.LCP(1, secondTree, 4);
+    std::cout << "LCP: " << LCP_value << std::endl;
+    assert(LCP_value == 4);
 
-  LCP_value = secondTree.LCP(0, secondTree, 0);
-  std::cout << "LCP: " << LCP_value << std::endl;
-  assert(LCP_value == 9);
+    LCP_value = secondTree.LCP(0, secondTree, 0);
+    std::cout << "LCP: " << LCP_value << std::endl;
+    assert(LCP_value == 9);
 
-  LCP_value = secondTree.LCP(5, secondTree, 1);
-  std::cout << "LCP: " << LCP_value << std::endl;
-  assert(LCP_value == 0);
+    LCP_value = secondTree.LCP(5, secondTree, 1);
+    std::cout << "LCP: " << LCP_value << std::endl;
+    assert(LCP_value == 0);
+  }
 
   // random test for LCP computation on same random string
   average_time_LCP = 0;
@@ -843,6 +938,15 @@ int main() {
       std::cout << "Computed LCP: " << LCP_value << " Scan LCP: " << scan
                 << std::endl;
     }
+    /* std::cout << "Destroying trees" << std::endl; */
+    /* start_time = std::chrono::high_resolution_clock::now(); */
+    /* tree.destroy(tree.getRoot()); */
+    /* end_time = std::chrono::high_resolution_clock::now(); */
+    /* std::cout << "Time taken for tree destruction: " */
+    /*           << std::chrono::duration_cast<std::chrono::microseconds>( */
+    /*                  end_time - start_time) */
+    /*                  .count() */
+    /*           << " ms" << std::endl; */
   }
 
   return 0;
