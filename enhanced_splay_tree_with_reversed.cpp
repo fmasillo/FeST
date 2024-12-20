@@ -19,10 +19,12 @@ struct node {
   unsigned char character;
   uint64_t kr;
   uint64_t base_exp;
+  bool reversed;
+  uint64_t kr_rev;
 
   node(char c)
       : parent(nullptr), left(nullptr), right(nullptr), subtree_size(1),
-        character(c), kr(c), base_exp(base) {}
+        character(c), kr(c), base_exp(base), reversed(false), kr_rev(c) {}
 
   node(node *n) {
     parent = n->parent;
@@ -32,6 +34,8 @@ struct node {
     character = n->character;
     kr = n->kr;
     base_exp = n->base_exp;
+    reversed = false;
+    kr_rev = n->kr;
   }
 
   // Destructor for node
@@ -50,7 +54,9 @@ std::ostream &operator<<(std::ostream &os, const node *n) {
     return os;
   }
   os << &n << " " << n->character << " : " << n->subtree_size << " - " << n->kr
-     << " p " << n->base_exp;
+     << " p " << n->base_exp << " rev " << n->reversed << " kr_rev "
+     << n->kr_rev;
+
   return os;
 }
 
@@ -109,6 +115,7 @@ public:
     int currentPos = position;
 
     while (z) {
+      updateReversed(z);
       int leftSize = z->left ? z->left->subtree_size : 0;
       if (currentPos == leftSize) {
         splay<isModified>(z);
@@ -317,6 +324,18 @@ public:
       return LCP_value;
     }
   }
+
+  // Reverse substring from i to j
+  void reverse(const uint32_t i, const uint32_t j) {
+    if (i < 0 || j >= root->subtree_size || i > j) {
+      std::cout << "Invalid range for reverse" << std::endl;
+      return;
+    }
+    node *subtree = isolate(i, j);
+    subtree->reversed = !subtree->reversed;
+    updateNodeInfo(subtree);
+  }
+
   // Visualize the tree with at most 10 levels of depth
   void visualize(node *n, int depth = 0) {
     if (depth > 5)
@@ -484,9 +503,48 @@ private:
     assert(n->base_exp > 0);
   }
 
+  // Update the reverse KR hash of a node
+  void updateKR_rev(node *n) {
+    if (n) {
+      n->kr_rev = n->character;
+      if (n->right) {
+        n->kr_rev =
+            ((__uint128_t)n->kr_rev * n->right->base_exp + n->right->kr_rev) %
+            prime;
+      }
+      if (n->left) {
+        n->kr_rev =
+            ((__uint128_t)n->left->kr_rev * n->base_exp + n->kr_rev) % prime;
+      }
+    }
+  }
+
+  // Update reversed
+  void updateReversed(node *n) {
+    if (n) {
+      if (n->reversed) {
+        n->reversed = false;
+        if (n->left)
+          n->left->reversed = !n->left->reversed;
+        if (n->right)
+          n->right->reversed = !n->right->reversed;
+        node *tmp = n->left;
+        n->left = n->right;
+        n->right = tmp;
+        tmp = nullptr;
+
+        uint64_t tmp_kr = n->kr;
+        n->kr = n->kr_rev;
+        n->kr_rev = tmp_kr;
+      }
+    }
+  }
+
   void updateNodeInfo(node *n) {
     updateSubtreeSize(n);
     updateKR(n);
+    updateKR_rev(n);
+    updateReversed(n);
   }
 
   // Splay operation
@@ -946,4 +1004,3 @@ int main() {
 /*     } */
 
 /*     splay(n); */
-/*   } */

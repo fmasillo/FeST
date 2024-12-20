@@ -3,6 +3,7 @@
 *.o
 splay_tree
 enhanced_splay_tree
+enhanced_splay_tree_with_reversed
 
 # Ignore clipboard.txt
 
