@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <iostream>
 #include <ostream>
+#include <unordered_map>
+#include <vector>
 
 #define normal false
 #define modified true
@@ -282,7 +284,7 @@ public:
 
     bool overlap = false;
     // if yes, just do exponential search, extract the substring and
-    // doubling search the extracted substring until LCP is computed
+    // do doubling search on the extracted substring until LCP is computed
     if (equal(i, other, j, threshold)) {
       SplayTree firstSubstr = nullptr, secondSubstr = nullptr;
       return _LCP_routine(i, other, j, n_prime, &other == this, firstSubstr,
@@ -329,6 +331,8 @@ public:
       visualize(n->left, depth + 1);
     }
   }
+
+  uint32_t size() { return root->subtree_size; }
 
 private:
   // Construct a fully balanced binary tree from an array of characters
@@ -614,8 +618,82 @@ private:
   }
 };
 
-// Do some tests on LCP computation on two randomly generate strings and check
-// with a scan if the results are correct
+class StringHandler {
+
+public:
+  uint64_t handler;
+
+  StringHandler() : handler(0) {}
+
+  StringHandler(const SplayTree *tree) { handler = (uint64_t)tree; }
+
+  bool operator==(const StringHandler &other) const {
+    return handler == other.handler;
+  }
+};
+// define hash function for StringHandler
+template <> struct std::hash<StringHandler> {
+  std::size_t operator()(const StringHandler &str) const {
+    return std::hash<uint64_t>()(str.handler);
+  }
+};
+
+class FeST {
+  std::unordered_map<StringHandler, SplayTree> trees;
+
+public:
+  FeST() { trees.reserve(1000); }
+
+  FeST(const std::string &str) {
+    SplayTree tree(str);
+    trees[&tree] = tree;
+  }
+
+  FeST(FeST &other) { trees = other.trees; }
+
+  void delete_tree(SplayTree &tree) {
+    trees.erase(&tree);
+    delete &tree;
+  }
+
+  SplayTree *merge_trees(SplayTree &first, SplayTree &second) {
+    SplayTree *newTree = new SplayTree();
+    newTree->introduce(0, first);
+    newTree->introduce(first.size(), second);
+    trees[newTree] = *newTree;
+    trees.erase(&first);
+    trees.erase(&second);
+    return newTree;
+  }
+
+  SplayTree *add_new_tree(SplayTree &tree) {
+    SplayTree *newTree = new SplayTree(tree);
+    trees[newTree] = *newTree;
+    return newTree;
+  }
+
+  SplayTree *add_new_tree(const std::string &str) {
+    SplayTree *newTree = new SplayTree(str);
+    trees[newTree] = *newTree;
+    return newTree;
+  }
+
+  SplayTree *get_tree(StringHandler sh) { return &trees[sh]; }
+
+  SplayTree *get_tree(const std::string &str) {
+    for (auto &tree : trees) {
+      if (tree.second.retrieve(0, tree.second.size() - 1) == str) {
+        return &tree.second;
+      }
+    }
+    return nullptr;
+  }
+
+  uint64_t size() { return trees.size(); }
+};
+
+// Do some tests on LCP computation on two randomly generated strings and
+// check with a scan if the results are correct
 int main() {
 
   double average_time_LCP = 0;
@@ -737,7 +815,8 @@ int main() {
       chars.push_back('a' + rand() % 26);
     }
 
-    // select a region of the string and make it pseudo-periodic with period 30
+    // select a region of the string and make it pseudo-periodic with period
+    // 30
     int beginning = rand() % 100;
     int end = beginning + (rand() % 1000); // rand() % 100;
     for (int j = beginning; j < end; j++) {
@@ -790,160 +869,3 @@ int main() {
 
   return 0;
 }
-
-/* std::vector<char> chars = {'m', 'i', 's', 's', 'i', 's', */
-/*                            's', 'i', 'p', 'p', 'i'}; */
-/* SplayTree tree; */
-/* tree.root = tree.buildBalancedTree(chars, 0, chars.size() - 1); */
-
-/* std::cout << "Root character: " << tree.root->character << std::endl; */
-/* tree.visualize(tree.getRoot()); */
-
-/* std::cout << "Find node at position 5" << std::endl; */
-/* tree.find<normal>(8); */
-/* tree.visualize(tree.getRoot()); */
-
-/* tree.insert('h', 3); // Insert 'h' at position 3 */
-/* std::cout << "Root after insertion: " << tree.root->character << std::endl;
- */
-/* tree.visualize(tree.getRoot()); */
-
-/* tree.insert('i', 0); // Insert 'i' at position 0 */
-/* std::cout << "Root after insertion: " << tree.root->character << std::endl;
- */
-/* tree.visualize(tree.getRoot()); */
-
-/* tree.deleteNode(3); // Delete node at position 3 */
-/* std::cout << "Root after deletion: " << tree.root->character << std::endl;
- */
-/* tree.visualize(tree.getRoot()); */
-
-/* tree.find<normal>(3); // Find node at position 3 */
-/* std::cout << "Found node: " << tree.root->character << std::endl; */
-/* tree.visualize(tree.getRoot()); */
-
-/* tree.deleteNode(0); // Delete node at position 1 */
-/* std::cout << "Root after deletion: " << tree.root->character << std::endl;
- */
-/* tree.visualize(tree.getRoot()); */
-
-/* node *subtring = tree.isolate(3, 6); // Isolate substring from position 3
- * to
- * 6 */
-/* std::cout << "Isolated substring: " << subtring->character << std::endl; */
-/* tree.visualize(subtring); */
-
-/* std::string firstSubstring = */
-/*     tree.retrieve(3, 4); // Retrieve substring from position 3 to 4 */
-/* std::string secondSubstring = */
-/*     tree.retrieve(6, 7); // Retrieve substring from position 6 to 7 */
-/* bool equal = tree.equal(3, tree, 6, 2); // Check if two substrings are
- * equal
- */
-/* std::cout << "Are two substrings (" << firstSubstring << ", " */
-/*           << secondSubstring << ") equal: " << (equal ? "TRUE" : "FALSE")
- */
-/*           << std::endl; */
-
-/* firstSubstring = tree.retrieve(0, 6); */
-/* secondSubstring = tree.retrieve(3, 9); */
-/* equal = tree.equal(3, tree, 0, 7); */
-/* std::cout << "Are two substrings (" << firstSubstring << ", " */
-/*           << secondSubstring << ") equal: " << (equal ? "TRUE" : "FALSE")
- */
-/*           << std::endl; */
-
-/* node *strangeSubstring = tree.isolate(6, 5); */
-/* if (strangeSubstring == nullptr) { */
-/*   std::cout << "There is no root->right->left node" << std::endl; */
-/* } else { */
-/*   tree.visualize(strangeSubstring); */
-/* } */
-
-/* std::vector<char> secondChars = {'h', 'e', 'l', 'l', 'o'}; */
-/* SplayTree secondTree; */
-/* secondTree.root = */
-/*     secondTree.buildBalancedTree(secondChars, 0, secondChars.size() - 1);
- */
-
-/* tree.introduce(3, secondTree); */
-/* std::cout << "Root after introducing substring: " << tree.root->character
- */
-/*           << std::endl; */
-/* tree.visualize(tree.getRoot()); */
-
-/* SplayTree extractedTree = tree.extract(2, 6); */
-/* std::cout << "Extracted tree: " << extractedTree.root->character <<
- * std::endl; */
-/* extractedTree.visualize(extractedTree.getRoot()); */
-/* std::cout << "Root after extraction: " << tree.root->character <<
- * std::endl;
- */
-/* tree.visualize(tree.getRoot()); */
-
-/* extractedTree.insert('h', extractedTree.getRoot()->subtree_size); */
-/* std::cout << "Root after insertion: " << extractedTree.root->character */
-/*           << std::endl; */
-/* extractedTree.visualize(extractedTree.getRoot()); */
-/* std::vector<char> thirdChars = {'h', 'e', 'l', 'l', 'o'}; */
-/* SplayTree thirdTree; */
-/* thirdTree.root = */
-/*     thirdTree.buildBalancedTree(thirdChars, 0, thirdChars.size() - 1); */
-
-/* uint32_t LCP_value = extractedTree.LCP(2, thirdTree, 1); */
-/* std::cout << "Root after LCP computation: " <<
- * extractedTree.root->character
- */
-/*           << std::endl; */
-/* extractedTree.visualize(extractedTree.getRoot()); */
-/* std::cout << "Root after LCP computation: " << thirdTree.root->character */
-/*           << std::endl; */
-/* thirdTree.visualize(thirdTree.getRoot()); */
-/* std::cout << "LCP: " << LCP_value << std::endl; */
-
-/* // Insert a new character at a given position */
-/*   void insert(char c, int position) { */
-
-/*     if (position == 0) { */
-/*       node *n = new node(c); */
-/*       n->right = root; */
-/*       if (root) */
-/*         root->parent = n; */
-/*       root = n; */
-/*       return; */
-/*     } */
-
-/*     node *z = root; */
-/*     int currentPos = position - 1; */
-
-/*     while (z) { */
-/*       int leftSize = z->left ? z->left->subtree_size : 0; */
-/*       if (currentPos == leftSize + 1) { */
-/*         break; */
-/*       } else if (currentPos < leftSize + 1) { */
-/*         z = z->left; */
-/*       } else { */
-/*         currentPos -= leftSize + 1; */
-/*         z = z->right; */
-/*       } */
-/*     } */
-
-/*     node *n = new node(c); */
-/*     if (!z) { */
-/*       root = n; */
-/*     } else if (currentPos == 0) { */
-/*       n->left = z->left; */
-/*       if (z->left) */
-/*         z->left->parent = n; */
-/*       z->left = n; */
-/*       n->parent = z; */
-/*     } else { */
-/*       n->left = z->right; */
-/*       if (z->right) */
-/*         z->right->parent = n; */
-/*       z->right = n; */
-/*       n->parent = z; */
-/*     } */
-
-/*     splay(n); */
-/*   } */
