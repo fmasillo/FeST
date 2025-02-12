@@ -91,22 +91,28 @@ public:
         root->parent = n;
       root = n;
     } else {
-      SplayTree leftTree, rightTree;
-      split(position - 1, leftTree, rightTree);
+      SplayTree rightTree = nullptr;
+      extract(position, getSubtreeSize(root) - 1, rightTree);
       node *n = new node(c);
-      root = n;
-      root->left = leftTree.root;
-      root->right = rightTree.root;
-      if (leftTree.root)
-        leftTree.root->parent = root;
-      if (rightTree.root)
-        rightTree.root->parent = root;
+      SplayTree newTree(n);
+      introduce(getSubtreeSize(root), newTree);
+      introduce(getSubtreeSize(root), rightTree);
     }
     updateNodeInfo(root);
   }
 
-  // Find a node at a given position
-  template <auto isModified> node *find(const int position) {
+  void edit(const unsigned char c, const uint32_t position) {
+    if (position > root->subtree_size) {
+      std::cout << "Invalid position for edit" << std::endl;
+      return;
+    }
+    get<normal>(position);
+    root->character = c;
+    updateNodeInfo(root);
+  }
+
+  // get a node at a given position
+  template <auto isModified> node *get(const int position) {
     node *z = root;
     int currentPos = position;
 
@@ -128,20 +134,24 @@ public:
   // Delete implementation using split and join
   void delete_node(const int position) {
     if (position == 0) {
-      find<normal>(0);
+      get<normal>(0);
       root = root->right;
       root->parent = nullptr;
       updateNodeInfo(root);
       return;
     }
 
-    SplayTree leftTree, rightTree, deletedNode;
-    split(position - 1, leftTree, rightTree);
+    SplayTree leftTree, rightTree;
+    extract(0, position - 1, leftTree);
+    extract(1, getSubtreeSize(root) - 1, rightTree);
+    introduce(0, leftTree);
+    introduce(getSubtreeSize(root), rightTree);
+    /* split(position - 1, leftTree, rightTree); */
 
-    rightTree.split(0, deletedNode, rightTree);
+    /* rightTree.split(0, deletedNode, rightTree); */
 
-    leftTree.join(rightTree);
-    root = leftTree.root;
+    /* leftTree.join(rightTree); */
+    /* root = leftTree.root; */
   }
 
   // Introduce a substring from another tree at a given position
@@ -151,7 +161,7 @@ public:
         root = other.root;
       other.root = nullptr;
     } else if (pos == root->subtree_size) {
-      find<normal>(pos - 1);
+      get<normal>(pos - 1);
       root->right = other.root;
       root->right->parent = root;
       other = nullptr;
@@ -173,13 +183,45 @@ public:
         updateNodeInfo(root);
       }
     } else if (pos == 0) {
-      find<normal>(other.root->subtree_size - 1);
+      get<normal>(other.root->subtree_size - 1);
       other.root->right = root;
       other.root->right->parent = other.root;
       root = other.root;
       other.root = nullptr;
     }
   }
+
+  /* // Introduce a substring from another tree at a given position */
+  /* void introduce(const uint32_t pos, node *other) { */
+  /*   if (!root) { */
+  /*     if (other->character) */
+  /*       root = other; */
+  /*   } else if (pos == root->subtree_size) { */
+  /*     get<normal>(pos - 1); */
+  /*     root->right = other; */
+  /*     root->right->parent = root; */
+  /*     other = nullptr; */
+  /*     updateNodeInfo(root); */
+  /*   } else if (pos < root->subtree_size && pos > 0) { */
+  /*     isolate(pos, pos - 1); */
+
+  /*     if (root->right) { */
+  /*       root->right->left = other; */
+  /*       root->right->left->parent = root->right; */
+
+  /*       updateNodeInfo(root->right); */
+  /*       updateNodeInfo(root); */
+  /*     } else { */
+  /*       root->right = other; */
+  /*       root->right->parent = root; */
+  /*       updateNodeInfo(root); */
+  /*     } */
+  /*   } else if (pos == 0) { */
+  /*     other->right = root; */
+  /*     other->right->parent = other; */
+  /*     root = other; */
+  /*   } */
+  /* } */
 
   // Extract a substring from the tree and return the root of the extracted
   // subtree
@@ -194,7 +236,7 @@ public:
       return;
     }
     if (i == 0) {
-      find<normal>(j + 1);
+      get<normal>(j + 1);
       other.root = root->left;
       other.root->parent = nullptr;
       root->left = nullptr;
@@ -218,6 +260,9 @@ public:
 
   // Retrieve a substring from the tree
   std::string retrieve(const uint32_t i, const uint32_t j) {
+    if (!root) {
+      return "";
+    }
     node *subtree = isolate(i, j);
     std::string result;
     inorder(subtree, result);
@@ -266,7 +311,7 @@ public:
         std::min(getSubtreeSize(root) - i, getSubtreeSize(other.root) - j);
 
     // Check boundary cases
-    if (find<normal>(i)->character != other.find<normal>(j)->character) {
+    if (get<normal>(i)->character != other.get<normal>(j)->character) {
       return 0;
     }
     if (!equal(i, other, j, 2)) {
@@ -276,7 +321,8 @@ public:
       return n_prime;
     }
 
-    // Check at predetermined threshold (2^log_2(n)) if substrings are equal
+    // Check at predetermined threshold (2^{log_2^{2/3}(n)}) if substrings are
+    // equal
     int threshold = std::min(
         n_prime,
         (int)pow(2, pow(log2(getSubtreeSize(root) + getSubtreeSize(other.root)),
@@ -364,16 +410,16 @@ private:
       return root;
     }
     if (i == 0) {
-      find<normal>(j + 1);
+      get<normal>(j + 1);
       return root->left;
     }
     if (j == root->subtree_size - 1) {
-      find<normal>(i - 1);
+      get<normal>(i - 1);
       return root->right;
     }
 
-    find<normal>(j + 1);
-    find<modified>(i - 1);
+    get<normal>(j + 1);
+    get<modified>(i - 1);
 
     return root->right->left;
   }
@@ -580,7 +626,7 @@ private:
       rightTree.root = nullptr;
       return root;
     } else if (rightTree.root) {
-      find<normal>(root->subtree_size - 1);
+      get<normal>(root->subtree_size - 1);
       root->right = rightTree.root;
       root->right->parent = root;
       rightTree.root = nullptr;
@@ -593,7 +639,7 @@ private:
   // Split the tree into two trees based on a position
   void split(const uint32_t position, SplayTree &leftTree,
              SplayTree &rightTree) {
-    node *z = find<normal>(position);
+    node *z = get<normal>(position);
     if (!z) {
       leftTree.root = root;
       rightTree.root = nullptr;
@@ -651,36 +697,36 @@ public:
 
   FeST(FeST &other) { trees = other.trees; }
 
-  void delete_tree(SplayTree &tree) {
-    trees.erase(&tree);
-    delete &tree;
+  void delete_string(StringHandler tree) { trees.erase(tree); }
+
+  // Merge two strings, first+second, invalidate the key for the second string
+  void merge_strings(StringHandler first, StringHandler second) {
+    trees[first].introduce(trees[first].size(), trees[second]);
+    trees.erase(second);
   }
 
-  SplayTree *merge_trees(SplayTree &first, SplayTree &second) {
-    SplayTree *newTree = new SplayTree();
-    newTree->introduce(0, first);
-    newTree->introduce(first.size(), second);
-    trees[newTree] = *newTree;
-    trees.erase(&first);
-    trees.erase(&second);
-    return newTree;
+  StringHandler split_string(StringHandler tree, uint32_t position) {
+    SplayTree *rightTree = new SplayTree();
+    trees[tree].extract(position, trees[tree].size() - 1, *rightTree);
+    trees[rightTree] = *rightTree;
+    return rightTree;
   }
 
-  SplayTree *add_new_tree(SplayTree &tree) {
+  StringHandler add_new_string(SplayTree &tree) {
     SplayTree *newTree = new SplayTree(tree);
     trees[newTree] = *newTree;
     return newTree;
   }
 
-  SplayTree *add_new_tree(const std::string &str) {
+  StringHandler add_new_string(const std::string &str) {
     SplayTree *newTree = new SplayTree(str);
     trees[newTree] = *newTree;
     return newTree;
   }
 
-  SplayTree *get_tree(StringHandler sh) { return &trees[sh]; }
+  SplayTree *get_string(StringHandler sh) { return &trees[sh]; }
 
-  SplayTree *get_tree(const std::string &str) {
+  SplayTree *get_string(const std::string &str) {
     for (auto &tree : trees) {
       if (tree.second.retrieve(0, tree.second.size() - 1) == str) {
         return &tree.second;
@@ -695,6 +741,69 @@ public:
 // Do some tests on LCP computation on two randomly generated strings and
 // check with a scan if the results are correct
 int main() {
+
+  const std::string firstString = "banana";
+  const std::string secondString = "bananana";
+  const std::string thirdString = "abracadabra";
+  const std::string fourthString = "bandana";
+  const std::string fifthString = "mississippi";
+
+  FeST forest;
+
+  std::vector<StringHandler> keys;
+  keys.push_back(forest.add_new_string(firstString));
+  keys.push_back(forest.add_new_string(secondString));
+  keys.push_back(forest.add_new_string(thirdString));
+  keys.push_back(forest.add_new_string(fourthString));
+  keys.push_back(forest.add_new_string(fifthString));
+
+  // print StringHandler and the corresponding string
+  for (auto &key : keys) {
+    std::cout << key.handler << " : "
+              << forest.get_string(key)->retrieve(
+                     0, forest.get_string(key)->size() - 1)
+              << std::endl;
+  }
+
+  // edit third string by inserting a character
+  forest.get_string(keys[2])->insert('c', 5);
+  std::cout << "Edited string: "
+            << forest.get_string(keys[2])->retrieve(
+                   0, forest.get_string(keys[2])->size() - 1)
+            << std::endl;
+
+  // edit third string by changing a character
+  forest.get_string(keys[2])->edit('r', 5);
+  std::cout << "Edited string: "
+            << forest.get_string(keys[2])->retrieve(
+                   0, forest.get_string(keys[2])->size() - 1)
+            << std::endl;
+
+  // delete inserted character
+  forest.get_string(keys[2])->delete_node(5);
+  std::cout << "Reverted string: "
+            << forest.get_string(keys[2])->retrieve(
+                   0, forest.get_string(keys[2])->size() - 1)
+            << std::endl;
+
+  // merge first and second string
+  // CAREFUL: the key for the second string is invalidated
+  forest.merge_strings(keys[0], keys[1]);
+  std::cout << "Merged string: "
+            << forest.get_string(keys[0])->retrieve(
+                   0, forest.get_string(keys[0])->size() - 1)
+            << std::endl;
+
+  StringHandler newString = forest.split_string(keys[0], 6);
+  std::cout << "Splitted string "
+            << forest.get_string(newString)->retrieve(
+                   0, forest.get_string(newString)->size() - 1)
+            << " from "
+            << forest.get_string(keys[0])->retrieve(
+                   0, forest.get_string(keys[0])->size() - 1)
+            << std::endl;
+
+  /* exit(0); */
 
   double average_time_LCP = 0;
   double average_time_scan = 0;
@@ -718,9 +827,23 @@ int main() {
     secondChars.erase(secondChars.begin() + position);
 
     std::cout << "Building first tree" << std::endl;
+    auto buildTimeStart = std::chrono::high_resolution_clock::now();
     SplayTree tree(chars);
+    auto buildTimeEnd = std::chrono::high_resolution_clock::now();
+    std::cout << "Time taken for tree construction: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     buildTimeEnd - buildTimeStart)
+                     .count()
+              << " microseconds" << std::endl;
     std::cout << "Building second tree" << std::endl;
+    buildTimeStart = std::chrono::high_resolution_clock::now();
     SplayTree secondTree(secondChars);
+    buildTimeEnd = std::chrono::high_resolution_clock::now();
+    std::cout << "Time taken for tree construction: "
+              << std::chrono::duration_cast<std::chrono::microseconds>(
+                     buildTimeEnd - buildTimeStart)
+                     .count()
+              << " microseconds" << std::endl;
 
     int start = rand() % 100;
     int secondStart = start; // rand() % 100;
@@ -737,7 +860,7 @@ int main() {
               << std::chrono::duration_cast<std::chrono::microseconds>(
                      end_time - start_time)
                      .count()
-              << " ms" << std::endl;
+              << " microseconds" << std::endl;
     average_time_LCP += std::chrono::duration_cast<std::chrono::microseconds>(
                             end_time - start_time)
                             .count();
@@ -754,7 +877,7 @@ int main() {
               << std::chrono::duration_cast<std::chrono::microseconds>(
                      end_time - start_time)
                      .count()
-              << " ms" << std::endl;
+              << " microseconds" << std::endl;
     average_time_scan += std::chrono::duration_cast<std::chrono::microseconds>(
                              end_time - start_time)
                              .count();
@@ -773,9 +896,9 @@ int main() {
   }
 
   std::cout << "Average time for LCP computation: " << average_time_LCP / 100
-            << " ms" << std::endl;
+            << " microseconds" << std::endl;
   std::cout << "Average time for scan computation: " << average_time_scan / 100
-            << " ms" << std::endl;
+            << " microseconds" << std::endl;
 
   {
     // test LCP computation on the same string
@@ -808,7 +931,7 @@ int main() {
   srand(time(0));
   for (int i = 0; i < 10; i++) {
     std::cout << "Round (same string) " << i << std::endl;
-    uint32_t string_length = rand() % 10000000;
+    uint32_t string_length = rand() % 100000000;
     std::string chars;
     chars.reserve(string_length);
     for (uint32_t j = 0; j < string_length; j++) {
@@ -835,7 +958,7 @@ int main() {
               << std::chrono::duration_cast<std::chrono::microseconds>(
                      end_time - start_time)
                      .count()
-              << " ms" << std::endl;
+              << " microseconds" << std::endl;
     average_time_LCP += std::chrono::duration_cast<std::chrono::microseconds>(
                             end_time - start_time)
                             .count();
@@ -851,7 +974,7 @@ int main() {
               << std::chrono::duration_cast<std::chrono::microseconds>(
                      end_time - start_time)
                      .count()
-              << " ms" << std::endl;
+              << " microseconds" << std::endl;
     average_time_scan += std::chrono::duration_cast<std::chrono::microseconds>(
                              end_time - start_time)
                              .count();
