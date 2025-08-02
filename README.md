@@ -17,6 +17,8 @@ In the file ``FeST.cpp``, you can find an example of how to use the FeST data st
 The core component of this repository is found in file ``enhanced_splay_tree.hpp``. This file contains the functions which operate on the individual trees. The set of operations supported is the following:
 
 ```c++
+// get a node at a given position
+template <auto isModified> node *get(const int position)
 
 // Insert a new character at a given position
 void insert(const unsigned char c, const uint32_t position);
@@ -42,6 +44,8 @@ bool equal(const uint32_t i, SplayTree &other, const uint32_t j, const uint32_t 
 // Compute the LCP of two substrings
 uint32_t LCP(uint32_t i, SplayTree &other, uint32_t j);
 ```
+
+In the ``get`` function, there is a template variable ``isModified``. This value can be set to either ``normal`` (false) or ``modified`` (true). This affects only the last splay operation needed to bubble up the given node to the root. This modification is needed for the correctness of the ``isolate`` operation, as explained in the paper.
 
 ## Citation
 
