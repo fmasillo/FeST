@@ -12,12 +12,12 @@ make
 
 ## Example usage
 
-In the file ``FeST.cpp``, you can find an example of how to use the FeST data structure. The code in the main function includes some simple operations that can be performed on a FeST, such as inserting a new string or concatenating two existing strings into a single one. Then, some longest common prefix (LCP) queries are done on random strings.
+In the file ``FeST.cpp``, one can find an example of how to use the FeST data structure. The code in the main function includes some simple operations that can be performed on a FeST, such as inserting a new string in the collection or concatenating two existing strings into a single one. Then, some longest common prefix (LCP) queries are done on random strings and checked for correctness against naive scanning.
 
-The core component of this repository is found in file ``enhanced_splay_tree.hpp``. This file contains the functions which operate on the individual trees. The set of operations supported is the following:
+The core component of this repository is found in file ``enhanced_splay_tree.hpp``. This file contains the functions operating on individual trees. The set of operations supported is the following:
 
 ```c++
-// get a node at a given position
+// get a character at a given position
 template <auto isModified> node *get(const int position)
 
 // Insert a new character at a given position
@@ -26,7 +26,7 @@ void insert(const unsigned char c, const uint32_t position);
 // Edit a character at a given position
 void edit(const unsigned char c, const uint32_t position);
 
-// Delete node at a given position
+// Delete character at a given position
 void delete_node(const int position);
 
 // Introduce a substring from another tree at a given position
