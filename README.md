@@ -49,6 +49,25 @@ In the ``get`` function, there is a template variable ``isModified``. This value
 
 ## Citation
 
+Journal paper:
+Zsuzsanna Lipták, Francesco Masillo, and Gonzalo Navarro. A Textbook Solution for Dynamic Strings. Theoretical Computer Science, 1066:115746, 2026: <https://doi.org/10.1016/j.tcs.2026.115746>
+
+```bibtex
+@article{LiptakMN26,
+  author     = {{\relax Zs}uzsanna Lipt{\'{a}}k and
+              Francesco Masillo and
+              Gonzalo Navarro},
+  title      = {A textbook solution for dynamic strings},
+  journal    = {Theoretical Computer Science},
+  volume     = {1066},
+  pages      = {115746},
+  year       = {2026},
+  issn       = {0304-3975},
+  doi        = {https://doi.org/10.1016/j.tcs.2026.115746},
+  url        = {https://www.sciencedirect.com/science/article/pii/S0304397526000058},
+}
+```
+
 Conference paper:
 
 Zsuzsanna Lipták, Francesco Masillo, and Gonzalo Navarro. A Textbook Solution for Dynamic Strings. In Proc. of the 32nd Annual European Symposium on Algorithms (ESA 2024), volume 308 of LIPIcs, pages 86:1-86:16. Schloss Dagstuhl - Leibniz-Zentrum für Informatik, 2024: <https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ESA.2024.86>
