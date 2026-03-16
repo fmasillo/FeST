@@ -50,6 +50,7 @@ In the ``get`` function, there is a template variable ``isModified``. This value
 ## Citation
 
 Journal paper:
+
 Zsuzsanna Lipták, Francesco Masillo, and Gonzalo Navarro. A Textbook Solution for Dynamic Strings. Theoretical Computer Science, 1066:115746, 2026: <https://doi.org/10.1016/j.tcs.2026.115746>
 
 ```bibtex
